@@ -31,8 +31,8 @@ namespace OpenRA
 		public readonly IReadOnlyDictionary<string, MusicInfo> Music;
 		public readonly ITerrainInfo TerrainInfo;
 		public readonly IReadOnlyDictionary<string, MiniYamlNode> ModelSequences;
-		public IReadOnlyCollection<MiniYamlNode> UnresolvedRulesYaml;
-		public IReadOnlyCollection<MiniYamlNode> ResolvedRulesYaml;
+		public Dictionary<string, MiniYamlNode> UnresolvedRulesYaml;
+		public Dictionary<string, MiniYamlNode> ResolvedRulesYaml;
 
 		public Ruleset(
 			IReadOnlyDictionary<string, ActorInfo> actors,
@@ -42,8 +42,8 @@ namespace OpenRA
 			IReadOnlyDictionary<string, MusicInfo> music,
 			ITerrainInfo terrainInfo,
 			IReadOnlyDictionary<string, MiniYamlNode> modelSequences,
-			IReadOnlyCollection<MiniYamlNode> unresolvedRulesYaml,
-			IReadOnlyCollection<MiniYamlNode> resolvedRulesYaml)
+			Dictionary<string, MiniYamlNode> unresolvedRulesYaml,
+			Dictionary<string, MiniYamlNode> resolvedRulesYaml)
 		{
 			Actors = new ActorInfoDictionary(actors);
 			Weapons = weapons;
@@ -134,8 +134,7 @@ namespace OpenRA
 			return yamlNodes.ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), makeObject, "LoadFromManifest<" + name + ">");
 		}
 
-		public static void WriteUnresolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles, List<MiniYamlNode> resolvedRulesYaml,
-			string outputFolder, bool deleteFirst = false)
+		public static void WriteUnresolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles, string outputFolder, bool deleteFirst = false)
 		{
 			if (deleteFirst)
 				MiniYaml.DeleteAllFiles(outputFolder);
@@ -153,8 +152,7 @@ namespace OpenRA
 		public static List<MiniYamlNode> ResolveIndividualNode(List<MiniYamlNode> inputNode, List<MiniYamlNode> resolvedRulesYaml)
 		{ return MiniYaml.AtomicMerge(inputNode, new List<IReadOnlyCollection<MiniYamlNode>>() { resolvedRulesYaml }); }
 
-		public static void WriteResolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles, List<MiniYamlNode> resolvedRulesYaml,
-			string outputFolder, bool deleteFirst = false)
+		public static void WriteResolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles,	string outputFolder, bool deleteFirst = false)
 		{
 			if (deleteFirst)
 				MiniYaml.DeleteAllFiles(outputFolder);
@@ -186,8 +184,8 @@ namespace OpenRA
 			Ruleset ruleset = null;
 			void LoadRuleset()
 			{
-				var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fs, m.Rules, null);
-				var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null);
+				var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "UnresolvedRulesYaml", null, null);
+				var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "ResolvedRulesYaml", null, null);
 
 				var actors = MergeOrDefault("Manifest,Rules", fs, m.Rules, null, null,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k.Value),
@@ -248,8 +246,8 @@ namespace OpenRA
 			Ruleset ruleset = null;
 			void LoadRuleset()
 			{
-				var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fileSystem, m.Rules, null);
-				var resolvedRulesYaml = MiniYaml.Load(fileSystem, m.Rules, null);
+				var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fileSystem, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key, "UnresolvedRulesYaml", null, null);
+				var resolvedRulesYaml = MiniYaml.Load(fileSystem, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key, "ResolvedRulesYaml", null, null);
 
 				var actors = MergeOrDefault("Rules", fileSystem, m.Rules, mapRules, dr.Actors,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k.Value),
