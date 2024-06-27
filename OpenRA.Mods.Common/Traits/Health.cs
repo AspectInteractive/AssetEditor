@@ -18,6 +18,7 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public class HealthInfo : TraitInfo, IHealthInfo, IRulesetLoaded, IEditorActorOptions
 	{
+		[AssetEditor]
 		[Desc("HitPoints")]
 		public readonly int HP = 0;
 
