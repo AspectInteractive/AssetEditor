@@ -23,7 +23,7 @@ namespace OpenRA
 	/// <summary>
 	/// A unit/building inside the game. Every rules starts with one and adds trait to it.
 	/// </summary>
-	public class ActorInfo
+	public class ActorInfo : IRulesetLoaded
 	{
 		public const char AbstractActorPrefix = '^';
 		public const char TraitInstanceSeparator = '@';
@@ -37,15 +37,16 @@ namespace OpenRA
 		public readonly string Name;
 		readonly TypeDictionary traits = new();
 		List<TraitInfo> constructOrderCache = null;
+		Ruleset rules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
 
 		public ActorInfo(ObjectCreator creator, string name, MiniYaml node)
 		{
-			var outputStr = $"~~~ name: {name}, node: {node}\n";
+			/*var outputStr = $"~~~ name: {name}, node: {node}\n";
 			foreach (var line in node.Nodes.ToLines())
 				outputStr += line + "\n";
 
 			const string OutputStrfilename = "test_output.txt";
-			File.AppendAllText(Path.Combine(Platform.SupportDir, OutputStrfilename), outputStr);
+			File.AppendAllText(Path.Combine(Platform.SupportDir, OutputStrfilename), outputStr);*/
 
 			try
 			{
@@ -81,6 +82,11 @@ namespace OpenRA
 			foreach (var t in traitInfos)
 				traits.Add(t);
 			traits.TrimExcess();
+		}
+
+		public void RulesetLoaded(Ruleset rules, ActorInfo info)
+		{
+			this.rules = rules;
 		}
 
 		static TraitInfo LoadTraitInfo(ObjectCreator creator, string traitName, MiniYaml my)
