@@ -41,6 +41,14 @@ namespace OpenRA.Graphics
 		public Animation(World world, string name, Func<bool> paused)
 			: this(world.Map.Sequences, name, () => WAngle.Zero, paused) { }
 
+		public Animation(World world, string name, Func<WAngle> facingFunc, Func<bool> paused)
+		{
+			sequences = world.Map.Sequences;
+			Name = name.ToLowerInvariant();
+			this.facingFunc = facingFunc;
+			this.paused = paused;
+		}
+
 		public Animation(SequenceSet sequences, string name)
 			: this(sequences, name, () => WAngle.Zero) { }
 
