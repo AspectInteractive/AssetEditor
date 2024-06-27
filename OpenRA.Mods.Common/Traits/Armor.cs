@@ -9,6 +9,8 @@
  */
 #endregion
 
+using OpenRA.Traits;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	// Type tag for armor type bits
@@ -17,6 +19,7 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Used to define weapon efficiency modifiers with different percentages per Type.")]
 	public class ArmorInfo : ConditionalTraitInfo
 	{
+		[AssetEditor]
 		public readonly string Type = null;
 
 		public override object Create(ActorInitializer init) { return new Armor(this); }
