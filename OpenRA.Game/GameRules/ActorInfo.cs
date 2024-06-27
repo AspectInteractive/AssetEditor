@@ -11,7 +11,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using ICSharpCode.SharpZipLib.BZip2;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -37,6 +40,13 @@ namespace OpenRA
 
 		public ActorInfo(ObjectCreator creator, string name, MiniYaml node)
 		{
+			var outputStr = $"~~~ name: {name}, node: {node}\n";
+			foreach (var line in node.Nodes.ToLines())
+				outputStr += line + "\n";
+
+			const string OutputStrfilename = "test_output.txt";
+			File.AppendAllText(Path.Combine(Platform.SupportDir, OutputStrfilename), outputStr);
+
 			try
 			{
 				Name = name;

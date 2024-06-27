@@ -35,6 +35,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Speed at which the actor turns.")]
 		public readonly WAngle TurnSpeed = new(512);
 
+		[AssetEditor]
 		public readonly int Speed = 1;
 
 		[Desc("If set to true, this unit will always turn in place instead of following a curved trajectory (like infantry).")]

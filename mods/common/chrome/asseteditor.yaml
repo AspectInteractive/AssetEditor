@@ -110,6 +110,21 @@ Background@ASSETEDITOR_PANEL:
 									Height: 10
 									Font: TinyBold
 									Align: Center
+								Container@STRING_OPTION_TEMPLATE:
+									Y: 15
+									Width: PARENT_RIGHT
+									Height: 26
+									Children:
+										Label@LABEL:
+											X: 5
+											Width: 90
+											Height: 16
+											Align: Right
+										TextField@VALUE:
+											X: 100
+											Width: 100
+											Height: 20
+											Type: General
 								Container@INT_OPTION_TEMPLATE:
 									Y: 15
 									Width: PARENT_RIGHT
@@ -125,6 +140,21 @@ Background@ASSETEDITOR_PANEL:
 											Width: 50
 											Height: 20
 											Type: Integer
+								Container@FLOAT_OPTION_TEMPLATE:
+									Y: 15
+									Width: PARENT_RIGHT
+									Height: 26
+									Children:
+										Label@LABEL:
+											X: 5
+											Width: 90
+											Height: 16
+											Align: Right
+										TextField@VALUE:
+											X: 100
+											Width: 50
+											Height: 20
+											Type: Float
 								Container@WVEC_OPTION_TEMPLATE:
 									Y: 15
 									Width: PARENT_RIGHT

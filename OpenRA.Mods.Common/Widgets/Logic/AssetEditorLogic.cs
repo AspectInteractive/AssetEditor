@@ -50,6 +50,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		ActorInfo selectedActor;
 
 		readonly Ruleset rules;
+		readonly Manifest manifest;
 		readonly ActorSelectorActor[] allActors;
 		readonly List<ActorSelectorActor> filteredActors = new();
 		readonly PlayerReference selectedOwner;
@@ -63,8 +64,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly List<AssetFieldSelector> allEditorFields = new();
 		readonly List<AssetFieldSelector> filteredEditorFields = new();
 		readonly Widget optionTemplate;
+		readonly Widget stringOptionTemplate;
 		readonly Widget intOptionTemplate;
 		readonly Widget wVecOptionTemplate;
+		readonly Widget floatOptionTemplate;
 		readonly Widget float3OptionTemplate;
 
 		readonly ScrollPanelWidget optionsContainer;
@@ -125,6 +128,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[ObjectCreator.UseCtor]
 		public AssetEditorLogic(Widget widget, Action onExit, ModData modData, WorldRenderer worldRenderer)
 		{
+			manifest = modData.Manifest;
+			var fs = modData.DefaultFileSystem;
+			var rulesYaml = MiniYaml.Load(fs, manifest.Rules, null);
+
 			world = worldRenderer.World;
 			selectedOwner = worldRenderer.World.WorldActor.Owner.PlayerReference;
 			panel = widget;
@@ -205,6 +212,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			actorList = panel.Get<ScrollPanelWidget>("ASSET_LIST");
 			template = panel.Get<ScrollItemWidget>("ASSET_TEMPLATE");
 
+			// Define set of actors to manipulate
+
+
+
 			rules = world.Map.Rules;
 			var allActorsTemp = new List<ActorSelectorActor>();
 			foreach (var a in rules.Actors.Values)
@@ -249,10 +260,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			editorContainer = panel.Get("EDITOR_SCROLLPANEL");
 			optionTemplate = editorContainer.Get("OPTION_TEMPLATE");
+			stringOptionTemplate = optionTemplate.Get("STRING_OPTION_TEMPLATE");
+			optionTemplate.RemoveChild(stringOptionTemplate);
 			intOptionTemplate = optionTemplate.Get("INT_OPTION_TEMPLATE");
 			optionTemplate.RemoveChild(intOptionTemplate);
 			wVecOptionTemplate = optionTemplate.Get("WVEC_OPTION_TEMPLATE");
 			optionTemplate.RemoveChild(wVecOptionTemplate);
+			floatOptionTemplate = optionTemplate.Get("FLOAT_OPTION_TEMPLATE");
+			optionTemplate.RemoveChild(floatOptionTemplate);
 			float3OptionTemplate = optionTemplate.Get("FLOAT3_OPTION_TEMPLATE");
 			optionTemplate.RemoveChild(float3OptionTemplate);
 
@@ -397,6 +412,32 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				return template;
 			}
+			else if (fieldType == typeof(string))
+			{
+				var template = stringOptionTemplate.Clone();
+				template.Get<LabelWidget>("LABEL").GetText = () => fieldName;
+
+				SetUpTextField(template.Get<TextFieldWidget>("VALUE"),
+					initialValue != null ? initialValue.ToString() : "",
+					text => setValue(text));
+
+				return template;
+			}
+			else if (fieldType == typeof(float))
+			{
+				var template = floatOptionTemplate.Clone();
+				template.Get<LabelWidget>("LABEL").GetText = () => fieldName;
+
+				SetUpTextField(template.Get<TextFieldWidget>("VALUE"),
+					initialValue.ToString(),
+					text =>
+					{
+						if (float.TryParse(text, out var result))
+							setValue(result);
+					});
+
+				return template;
+			}
 			else if (fieldType == typeof(WVec))
 			{
 				var template = wVecOptionTemplate.Clone();
@@ -486,10 +527,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		Widget SetEditorFields(FieldInfo field, object obj, Action<string, object> editAction)
 		{
 			var attribute = field.GetCustomAttribute<AssetEditorAttribute>();
-			if (attribute == null)
-				return null;
+			/*if (attribute == null)
+				return null;*/
 
-			if (attribute.EditInsideMembers != null)
+			if (attribute != null &&
+				attribute.EditInsideMembers != null)
 			{
 				if (field.FieldType != typeof(float3))
 					return null;
@@ -646,7 +688,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			preview.SetPreview(actor, td);
 
-			foreach (var editableProperties in a.Fields)
+			foreach (var editableProperties in a.Fields) // editableProperties is the list of fields for a given trait
 			{
 				var trait = editableProperties.Key;
 				var traitName = string.IsNullOrEmpty(trait.InstanceName)
@@ -902,7 +944,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				foreach (var field in fields)
 				{
-					if (field.GetCustomAttributes(typeof(AssetEditorAttribute), true).Length > 0)
+					if (field.GetCustomAttributes(typeof(AssetEditorAttribute), true).Length > 0 || true)
 					{
 						if (editableProperties.TryGetValue(traitInfo, out var list))
 							list.Add(field);
