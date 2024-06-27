@@ -11,8 +11,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using OpenRA.FileSystem;
 using OpenRA.GameRules;
 using OpenRA.Traits;
@@ -125,6 +128,38 @@ namespace OpenRA
 				var actors = MergeOrDefault("Manifest,Rules", fs, m.Rules, null, null,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k.Value),
 					filterNode: n => n.Key.StartsWith(ActorInfo.AbstractActorPrefix));
+
+				IReadOnlyCollection<MiniYamlNode> rulesYamlNodes = MiniYaml.LoadWithoutInherits(fs, m.Rules, null);
+				IReadOnlyCollection<MiniYamlNode> allNodes = MiniYaml.Load(fs, m.Rules, null);
+				/*foreach (var ruleNode in rulesYamlNodes)
+					foreach (var node in ruleNode.Value.Nodes)
+						foreach (var node2 in node.Value.Nodes)
+							Console.WriteLine($"ParentNodeKey: {ruleNode.Key}, Key: {node2.Key}, Value: {node2.Value}");
+				*/
+
+				const string TestYamlFolder = "TestFolder";
+				//MiniYaml.DeleteAllFiles(TestYamlFolder);
+				//MiniYaml.CreateFolder(TestYamlFolder, "rules");
+
+				foreach (var ruleFile in m.Rules)
+				{
+					var rulesYamlNodes2 = MiniYaml.LoadWithoutInherits(fs, new List<string>() { ruleFile }, null);
+					rulesYamlNodes2 = MiniYaml.AtomicMerge(rulesYamlNodes2, new List<IReadOnlyCollection<MiniYamlNode>>() { allNodes });
+					foreach (var ruleNode in rulesYamlNodes2)
+						MiniYaml.WriteNodeToText(TestYamlFolder, ruleFile, ruleNode.Key, ruleNode.Value);
+				}
+
+				//var rulesYamlNodes2 = MiniYaml.Load(fs, m.Rules, null);
+				//foreach (var ruleNode in rulesYamlNodes2)
+				//	MiniYaml.WriteNodeToText(TestYamlFolder, "allrules.txt", ruleNode.Key, ruleNode.Value);
+
+				//foreach (var line in rulesYamlNodes.ToLines())
+				//	Console.WriteLine(line);
+
+				//foreach (var ruleNode in rulesYamlNodes)
+				//	foreach (var nodeDict in ruleNode.Value.ToDictionary())
+				//		Console.WriteLine($"ruleNode: {ruleNode}, nodeDict: {nodeDict}, index: " +
+				//						  $"{MiniYaml.IndexOfKey(ruleNode.Value.Nodes.ToList(), "RevealsShroud")}");
 
 				var weapons = MergeOrDefault("Manifest,Weapons", fs, m.Weapons, null, null,
 					k => new WeaponInfo(k.Value));

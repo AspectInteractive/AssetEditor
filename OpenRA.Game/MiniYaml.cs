@@ -9,12 +9,13 @@
  */
 #endregion
 
+using OpenRA.FileSystem;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using OpenRA.FileSystem;
+using System.Xml.Linq;
 
 namespace OpenRA
 {
@@ -395,6 +396,55 @@ namespace OpenRA
 			return FromLines(text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Select(s => s.AsMemory()), name, discardCommentsAndWhitespace, stringPool);
 		}
 
+		public static List<MiniYamlNode> MergeWithoutInherits(IEnumerable<IReadOnlyCollection<MiniYamlNode>> sources)
+		{
+			var sourcesList = sources.ToList();
+			if (sourcesList.Count == 0)
+				return new List<MiniYamlNode>();
+
+			var tree = sourcesList
+				.Where(s => s != null)
+				.Select(MergeSelfPartial)
+				.Aggregate(MergePartial)
+				.Where(n => n.Key != null)
+				.ToDictionary(n => n.Key, n => n.Value);
+
+			var resolved = new Dictionary<string, MiniYaml>(tree.Count);
+			foreach (var kv in tree)
+			{
+				// Inheritance is tracked from parent->child, but not from child->parentsiblings.
+				var inherited = ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty.Add(kv.Key, default);
+				var children = ResolveWithoutInherits(kv.Value, tree, inherited);
+				resolved.Add(kv.Key, new MiniYaml(kv.Value.Value, children));
+			}
+
+			// Resolve any top-level removals (e.g. removing whole actor blocks)
+			var nodes = new MiniYaml("", resolved.Select(kv => new MiniYamlNode(kv.Key, kv.Value)));
+			return ResolveWithoutInherits(nodes, tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty);
+		}
+
+		public static List<MiniYamlNode> AtomicMerge(IReadOnlyCollection<MiniYamlNode> nodeList, IEnumerable<IReadOnlyCollection<MiniYamlNode>> allNodes)
+		{
+			var tree = allNodes
+				.Where(s => s != null)
+				.Select(MergeSelfPartial)
+				.Aggregate(MergePartial)
+				.Where(n => n.Key != null)
+				.ToDictionary(n => n.Key, n => n.Value);
+
+			var resolved = new Dictionary<string, MiniYaml>(nodeList.Count);
+			foreach (var kv in nodeList)
+			{
+				var inherited = ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty.Add(kv.Key, default);
+				var children = ResolveInherits(kv.Value, tree, inherited);
+				resolved.Add(kv.Key, new MiniYaml(kv.Value.Value, children));
+			}
+
+			// Resolve any top-level removals (e.g. removing whole actor blocks)
+			var nodes = new MiniYaml("", resolved.Select(kv => new MiniYamlNode(kv.Key, kv.Value)));
+			return ResolveInherits(nodes, tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty);
+		}
+
 		public static List<MiniYamlNode> Merge(IEnumerable<IReadOnlyCollection<MiniYamlNode>> sources)
 		{
 			var sourcesList = sources.ToList();
@@ -423,7 +473,7 @@ namespace OpenRA
 		}
 
 		static void MergeIntoResolved(MiniYamlNode overrideNode, List<MiniYamlNode> existingNodes, HashSet<string> existingNodeKeys,
-			Dictionary<string, MiniYaml> tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited)
+			Dictionary<string, MiniYaml> tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited, bool withInherits = true)
 		{
 			if (existingNodeKeys.Add(overrideNode.Key))
 			{
@@ -434,10 +484,21 @@ namespace OpenRA
 			var existingNodeIndex = IndexOfKey(existingNodes, overrideNode.Key);
 			var existingNode = existingNodes[existingNodeIndex];
 			var value = MergePartial(existingNode.Value, overrideNode.Value);
-			var nodes = ResolveInherits(value, tree, inherited);
+			var nodes = withInherits ? ResolveInherits(value, tree, inherited) : ResolveWithoutInherits(value, tree, inherited);
 			if (!value.Nodes.SequenceEqual(nodes))
 				value = value.WithNodes(nodes);
 			existingNodes[existingNodeIndex] = existingNode.WithValue(value);
+		}
+
+		static List<MiniYamlNode> ResolveWithoutInherits(MiniYaml node, Dictionary<string, MiniYaml> tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited)
+		{
+			var resolved = new List<MiniYamlNode>(node.Nodes.Length);
+			var resolvedKeys = new HashSet<string>(node.Nodes.Length);
+
+			foreach (var n in node.Nodes)
+				MergeIntoResolved(n, resolved, resolvedKeys, tree, inherited);
+
+			return resolved;
 		}
 
 		static List<MiniYamlNode> ResolveInherits(MiniYaml node, Dictionary<string, MiniYaml> tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited)
@@ -477,6 +538,49 @@ namespace OpenRA
 			}
 
 			return resolved;
+		}
+
+		/// <summary>
+		/// Writes a MiniYaml node to text file
+		/// </summary>
+		/// <param name="folderName">The output folder name</param>
+		/// <param name="fileName">The output file name</param>
+		/// <param name="key">The name of the first node</param>
+		/// <param name="node">The node that is being written to a file</param>
+		public static void WriteNodeToText(string folderName, string fileName, string key, MiniYaml node)
+		{
+			var outputStr = $"{key}:\n";
+			foreach (var line in node.Nodes.ToLines())
+				outputStr += "\t" + line + "\n";
+			outputStr += "\n";
+
+			var outputStrfilename = $"{fileName}";
+
+			var explicitSplit = outputStrfilename.IndexOf('|');
+			outputStrfilename = outputStrfilename[(explicitSplit + 1)..];
+			File.AppendAllText(Path.Combine(Platform.SupportDir, folderName, outputStrfilename), outputStr);
+		}
+
+		public static void DeleteAllFiles(string folderName)
+		{
+			var dir = new DirectoryInfo(Path.Combine(Platform.SupportDir, folderName));
+			foreach (var file in dir.GetFiles())
+				file.Delete();
+
+			foreach (var folder in dir.GetDirectories())
+				folder.Delete(true);
+		}
+
+		public static void CreateFolder(string folderName, string folderName2 = null, string folderName3 = null)
+		{
+			if (folderName == null)
+				throw new ArgumentNullException($"Parameter folderName cannot be {folderName}.");
+			if (folderName2 == null)
+				Directory.CreateDirectory(Path.Combine(Platform.SupportDir, folderName));
+			else if (folderName3 == null)
+				Directory.CreateDirectory(Path.Combine(Platform.SupportDir, folderName, folderName2));
+			else
+				Directory.CreateDirectory(Path.Combine(Platform.SupportDir, folderName, folderName2, folderName3));
 		}
 
 		/// <summary>
@@ -569,7 +673,7 @@ namespace OpenRA
 			return ret;
 		}
 
-		static int IndexOfKey(List<MiniYamlNode> nodes, string key)
+		public static int IndexOfKey(List<MiniYamlNode> nodes, string key)
 		{
 			// PERF: Avoid LINQ.
 			for (var i = 0; i < nodes.Count; i++)
@@ -615,6 +719,22 @@ namespace OpenRA
 				yaml = yaml.Append(mapRules.Nodes);
 
 			return Merge(yaml);
+		}
+
+		public static List<MiniYamlNode> LoadWithoutInherits(IReadOnlyFileSystem fileSystem, IEnumerable<string> files, MiniYaml mapRules)
+		{
+			if (mapRules != null && mapRules.Value != null)
+			{
+				var mapFiles = FieldLoader.GetValue<string[]>("value", mapRules.Value);
+				files = files.Append(mapFiles);
+			}
+
+			var stringPool = new HashSet<string>(); // Reuse common strings in YAML
+			IEnumerable<IReadOnlyCollection<MiniYamlNode>> yaml = files.Select(s => FromStream(fileSystem.Open(s), s, stringPool: stringPool));
+			if (mapRules != null && mapRules.Nodes.Length > 0)
+				yaml = yaml.Append(mapRules.Nodes);
+
+			return MergeWithoutInherits(yaml);
 		}
 	}
 
