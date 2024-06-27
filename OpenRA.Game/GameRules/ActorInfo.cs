@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Xml.Linq;
 using ICSharpCode.SharpZipLib.BZip2;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -41,13 +42,6 @@ namespace OpenRA
 
 		public ActorInfo(ObjectCreator creator, string name, MiniYaml node)
 		{
-			/*var outputStr = $"~~~ name: {name}, node: {node}\n";
-			foreach (var line in node.Nodes.ToLines())
-				outputStr += line + "\n";
-
-			const string OutputStrfilename = "test_output.txt";
-			File.AppendAllText(Path.Combine(Platform.SupportDir, OutputStrfilename), outputStr);*/
-
 			try
 			{
 				Name = name;
@@ -87,6 +81,18 @@ namespace OpenRA
 		public void RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
 			this.rules = rules;
+
+			var outputStr = "";
+
+			if (this.rules.UnresolvedRulesYaml.TryGetValue(Name, out var ruleNode))
+			{
+				outputStr = $"~~~ name: {ruleNode.Key}, node: {ruleNode.Value}\n";
+				foreach (var line in ruleNode.Value.Nodes.ToLines())
+					outputStr += line + "\n";
+			}
+
+			if (outputStr.Length > 0)
+				Console.WriteLine(outputStr);
 		}
 
 		static TraitInfo LoadTraitInfo(ObjectCreator creator, string traitName, MiniYaml my)
