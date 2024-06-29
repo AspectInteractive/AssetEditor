@@ -13,11 +13,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using System.Xml.Linq;
 using ICSharpCode.SharpZipLib.BZip2;
+using OpenRA.FileSystem;
 using OpenRA.Primitives;
 using OpenRA.Traits;
+using static System.Net.WebRequestMethods;
 
 namespace OpenRA
 {
@@ -36,16 +39,30 @@ namespace OpenRA
 		/// You can remove inherited traits by adding a - in front of them as in -TraitName: to inherit everything, but this trait.
 		/// </summary>
 		public readonly string Name;
-		readonly TypeDictionary traits = new();
+		TypeDictionary traits = new();
 		List<TraitInfo> constructOrderCache = null;
-		Ruleset rules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public Ruleset Rules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public MiniYamlNode ActorResolvedRules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public MiniYamlNode ActorUnresolvedRules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+
+		public enum RulesType
+		{
+			Resolved = 1,
+			Unresolved = 2,
+		}
 
 		public ActorInfo(ObjectCreator creator, string name, MiniYaml node)
 		{
+			Name = name;
+			LoadTraits(creator, node);
+		}
+
+		public void LoadTraits(ObjectCreator creator, MiniYaml node, bool clearAllFirst = false)
+		{
+			if (clearAllFirst)
+				traits = new(); // Incase we are reloading traits
 			try
 			{
-				Name = name;
-
 				foreach (var t in node.Nodes)
 				{
 					try
@@ -66,7 +83,7 @@ namespace OpenRA
 			}
 			catch (YamlException e)
 			{
-				throw new YamlException($"Actor type {name}: {e.Message}");
+				throw new YamlException($"Error loading traits: {e.Message}");
 			}
 		}
 
@@ -78,21 +95,69 @@ namespace OpenRA
 			traits.TrimExcess();
 		}
 
+		public ActorInfo(string name, MiniYamlNode actorResolvedRules, MiniYamlNode actorUnresolvedRules, params TraitInfo[] traitInfos)
+		{
+			Name = name;
+			ActorResolvedRules = actorResolvedRules;
+			ActorUnresolvedRules = actorUnresolvedRules;
+			foreach (var t in traitInfos)
+				traits.Add(t);
+			traits.TrimExcess();
+		}
+
 		public void RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
-			this.rules = rules;
 
-			var outputStr = "";
+			Rules = rules;
+			Rules.UnresolvedRulesYaml.TryGetValue(Name.ToLowerInvariant(), out ActorUnresolvedRules);
+			Rules.ResolvedRulesYaml.TryGetValue(Name.ToLowerInvariant(), out ActorResolvedRules);
+		}
 
-			if (this.rules.UnresolvedRulesYaml.TryGetValue(Name, out var ruleNode))
+		public void EditTrait(ObjectCreator creator, string traitName, string newName, RulesType rulesType)
+		{
+			if (!Rules.Actors.Select(a => a.Value.TraitInfos<TraitInfo>().Select(t => t.GetType().Name == traitName)).Any())
+				throw new YamlException($"Existing trait cannot be found: {traitName}");
+
+			if (!Rules.Actors.Select(a => a.Value.TraitInfos<TraitInfo>().Select(t => t.GetType().Name == newName)).Any())
+				throw new YamlException($"New trait cannot be found: {newName}");
+
+
+			var matchingTraitNodes = new List<MiniYamlNode>();
+			MiniYamlNode rulesForReloadingTraits = null;
+
+			Console.WriteLine("Working?");
+
+			if (rulesType is RulesType.Resolved)
 			{
-				outputStr = $"~~~ name: {ruleNode.Key}, node: {ruleNode.Value}\n";
-				foreach (var line in ruleNode.Value.Nodes.ToLines())
-					outputStr += line + "\n";
+				matchingTraitNodes = ActorResolvedRules.Value.Nodes.Where(t => t.Key + ":" == traitName).ToList();
+				rulesForReloadingTraits = ActorResolvedRules;
+			}
+			else if (rulesType is RulesType.Unresolved)
+			{
+				Console.WriteLine($"traitName: {traitName}");
+				foreach (var i in ActorUnresolvedRules.Value.Nodes)
+					Console.WriteLine($"i.Key: {i.Key}");
+				matchingTraitNodes = ActorUnresolvedRules.Value.Nodes.Where(t => t.Key + ":" == traitName).ToList();
+				rulesForReloadingTraits = ActorUnresolvedRules;
 			}
 
-			if (outputStr.Length > 0)
-				Console.WriteLine(outputStr);
+			if (matchingTraitNodes.Count > 0)
+			{
+				foreach (var traitNode in matchingTraitNodes)
+				{
+					Console.WriteLine($"Current name: {traitNode.Key}");
+					traitNode.Key = newName;
+					Console.WriteLine($"New name: {traitNode.Key}");
+					foreach (var line in ActorUnresolvedRules.Value.Nodes.ToLines())
+						Console.WriteLine(line);
+				}
+
+				if (rulesForReloadingTraits != null)
+					LoadTraits(creator, rulesForReloadingTraits.Value, true);
+
+				foreach (var trait in TraitInfos<TraitInfo>())
+					Console.WriteLine(trait.ToString());
+			}
 		}
 
 		static TraitInfo LoadTraitInfo(ObjectCreator creator, string traitName, MiniYaml my)

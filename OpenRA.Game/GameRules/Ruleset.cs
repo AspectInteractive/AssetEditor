@@ -176,6 +176,16 @@ namespace OpenRA
 			return output;
 		}
 
+		public static Dictionary<string, MiniYamlNode> LoadFilteredYamlToDictionary(IReadOnlyFileSystem fileSystem, List<MiniYamlNode> yamlNodes,
+			string debugName, Func<MiniYamlNode, bool> filterNode = null)
+		{
+			// Optionally, the caller can filter out elements from the loaded set of nodes. Default behavior is unfiltered.
+			if (filterNode != null)
+				yamlNodes = yamlNodes.Where(k => !filterNode(k)).ToList();
+
+			return yamlNodes.ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), debugName, null, null);
+		}
+
 		public static Ruleset LoadDefaults(ModData modData)
 		{
 			var m = modData.Manifest;
@@ -184,8 +194,12 @@ namespace OpenRA
 			Ruleset ruleset = null;
 			void LoadRuleset()
 			{
-				var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "UnresolvedRulesYaml", null, null);
-				var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "ResolvedRulesYaml", null, null);
+				bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
+				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(fs, MiniYaml.LoadWithoutInherits(fs, m.Rules, null), "UnresolvedRulesYaml", FilterNode);
+				var resolvedRulesYaml = LoadFilteredYamlToDictionary(fs, MiniYaml.Load(fs, m.Rules, null), "ResolvedRulesYaml", FilterNode);
+				//var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "UnresolvedRulesYaml", null, null);
+				//var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "ResolvedRulesYaml", null, null);
+
 
 				var actors = MergeOrDefault("Manifest,Rules", fs, m.Rules, null, null,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k.Value),
