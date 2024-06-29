@@ -51,19 +51,34 @@ namespace OpenRA
 			Unresolved = 2,
 		}
 
-		public ActorInfo(ObjectCreator creator, string name, MiniYaml node)
+		public ActorInfo(ObjectCreator creator, string name, MiniYamlNode node)
 		{
 			Name = name;
 			LoadTraits(creator, node);
+			//LoadTraits(creator, node.Value);
 		}
 
-		public void LoadTraits(ObjectCreator creator, MiniYaml node, bool clearAllFirst = false)
+		public ActorInfo(ObjectCreator creator, string name, MiniYamlNode node, Ruleset rules)
 		{
+			Name = name;
+			Rules = rules;
+			LoadTraits(creator, node);
+		}
+
+		public void LoadTraits(ObjectCreator creator, MiniYamlNode node, bool clearAllFirst = false)
+		{
+			Console.WriteLine("Loading Traits.");
+			MiniYaml yaml;
+			if (Rules != null && Rules.ResolvedRulesYaml != null)
+				yaml = Ruleset.ResolveIndividualNode(node, Rules.ResolvedRulesYaml);
+			else
+				yaml = node.Value;
+
 			if (clearAllFirst)
 				traits = new(); // Incase we are reloading traits
 			try
 			{
-				foreach (var t in node.Nodes)
+				foreach (var t in yaml.Nodes)
 				{
 					try
 					{
@@ -80,6 +95,13 @@ namespace OpenRA
 				}
 
 				traits.TrimExcess();
+				if (clearAllFirst)
+				{
+					Console.WriteLine("~~~ new traits ~~~");
+					//foreach (var trait in TraitInfos<TraitInfo>())
+					foreach (var trait in traits)
+						Console.WriteLine($"trait: {trait}");
+				}
 			}
 			catch (YamlException e)
 			{
@@ -109,8 +131,8 @@ namespace OpenRA
 		{
 
 			Rules = rules;
-			Rules.UnresolvedRulesYaml.TryGetValue(Name.ToLowerInvariant(), out ActorUnresolvedRules);
-			Rules.ResolvedRulesYaml.TryGetValue(Name.ToLowerInvariant(), out ActorResolvedRules);
+			Rules.UnresolvedRulesYamlDict.TryGetValue(Name.ToLowerInvariant(), out ActorUnresolvedRules);
+			ActorResolvedRules = Rules.ResolvedRulesYaml.FirstOrDefault(s => string.Equals(s.Key, Name, StringComparison.InvariantCultureIgnoreCase));
 		}
 
 		public void EditTrait(ObjectCreator creator, string traitName, string newName, RulesType rulesType)
@@ -125,8 +147,6 @@ namespace OpenRA
 			var matchingTraitNodes = new List<MiniYamlNode>();
 			MiniYamlNode rulesForReloadingTraits = null;
 
-			Console.WriteLine("Working?");
-
 			if (rulesType is RulesType.Resolved)
 			{
 				matchingTraitNodes = ActorResolvedRules.Value.Nodes.Where(t => t.Key + ":" == traitName).ToList();
@@ -134,9 +154,6 @@ namespace OpenRA
 			}
 			else if (rulesType is RulesType.Unresolved)
 			{
-				Console.WriteLine($"traitName: {traitName}");
-				foreach (var i in ActorUnresolvedRules.Value.Nodes)
-					Console.WriteLine($"i.Key: {i.Key}");
 				matchingTraitNodes = ActorUnresolvedRules.Value.Nodes.Where(t => t.Key + ":" == traitName).ToList();
 				rulesForReloadingTraits = ActorUnresolvedRules;
 			}
@@ -144,19 +161,10 @@ namespace OpenRA
 			if (matchingTraitNodes.Count > 0)
 			{
 				foreach (var traitNode in matchingTraitNodes)
-				{
-					Console.WriteLine($"Current name: {traitNode.Key}");
 					traitNode.Key = newName;
-					Console.WriteLine($"New name: {traitNode.Key}");
-					foreach (var line in ActorUnresolvedRules.Value.Nodes.ToLines())
-						Console.WriteLine(line);
-				}
 
 				if (rulesForReloadingTraits != null)
-					LoadTraits(creator, rulesForReloadingTraits.Value, true);
-
-				foreach (var trait in TraitInfos<TraitInfo>())
-					Console.WriteLine(trait.ToString());
+					LoadTraits(creator, rulesForReloadingTraits, true);
 			}
 		}
 
