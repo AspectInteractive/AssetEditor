@@ -423,7 +423,7 @@ namespace OpenRA
 			return ResolveWithoutInherits(nodes, tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty);
 		}
 
-		public static List<MiniYamlNode> AtomicMerge(IReadOnlyCollection<MiniYamlNode> nodeList, IEnumerable<IReadOnlyCollection<MiniYamlNode>> allNodes)
+		public static MiniYaml AtomicMerge(MiniYamlNode node, IEnumerable<IReadOnlyCollection<MiniYamlNode>> allNodes)
 		{
 			var tree = allNodes
 				.Where(s => s != null)
@@ -432,17 +432,10 @@ namespace OpenRA
 				.Where(n => n.Key != null)
 				.ToDictionary(n => n.Key, n => n.Value);
 
-			var resolved = new Dictionary<string, MiniYaml>(nodeList.Count);
-			foreach (var kv in nodeList)
-			{
-				var inherited = ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty.Add(kv.Key, default);
-				var children = ResolveInherits(kv.Value, tree, inherited);
-				resolved.Add(kv.Key, new MiniYaml(kv.Value.Value, children));
-			}
-
-			// Resolve any top-level removals (e.g. removing whole actor blocks)
-			var nodes = new MiniYaml("", resolved.Select(kv => new MiniYamlNode(kv.Key, kv.Value)));
-			return ResolveInherits(nodes, tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty);
+			var resolved = new Dictionary<string, MiniYaml>(1);
+			var inherited = ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty.Add(node.Key, default);
+			var children = ResolveInherits(node.Value, tree, inherited);
+			return new MiniYaml(node.Value.Value, children);
 		}
 
 		public static List<MiniYamlNode> Merge(IEnumerable<IReadOnlyCollection<MiniYamlNode>> sources)
