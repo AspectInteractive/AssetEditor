@@ -16,6 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using OpenRA;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
@@ -99,15 +100,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly struct ActorSelectorActor
 		{
 			public readonly ActorInfo Actor;
-			public readonly Dictionary<TraitInfo, List<FieldInfo>> Fields;
+			//public readonly Dictionary<TraitInfo, List<FieldInfo>> Fields;
+			public readonly IEnumerable<string> Fields;
 			public readonly string[] SearchTerms;
 			public readonly string Name;
 
-			public ActorSelectorActor(ActorInfo actor, Dictionary<TraitInfo, List<FieldInfo>> properties,
+			public ActorSelectorActor(ActorInfo actor, IEnumerable<string> traitStrings,
 				string[] searchTerms, string name)
 			{
 				Actor = actor;
-				Fields = properties;
+				Fields = traitStrings;
 				SearchTerms = searchTerms;
 				Name = name;
 			}
@@ -128,10 +130,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[ObjectCreator.UseCtor]
 		public AssetEditorLogic(Widget widget, Action onExit, ModData modData, WorldRenderer worldRenderer)
 		{
-			manifest = modData.Manifest;
-			var fs = modData.DefaultFileSystem;
-			var rulesYaml = MiniYaml.Load(fs, manifest.Rules, null);
-
 			world = worldRenderer.World;
 			selectedOwner = worldRenderer.World.WorldActor.Owner.PlayerReference;
 			panel = widget;
@@ -216,19 +214,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 
 
-			rules = world.Map.Rules;
+			//rules = world.Map.Rules;
+			manifest = modData.Manifest;
+			rules = Ruleset.LoadDefaults(modData);
+			//var fs = modData.DefaultFileSystem;
+			//var rules = MiniYaml.Load(fs, manifest.Rules, null);
+
 			var allActorsTemp = new List<ActorSelectorActor>();
-			foreach (var a in rules.Actors.Values)
+			foreach (var actor in rules.Actors.Values)
 			{
+				if (actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
+					continue;
+
 				// Partial templates are not allowed.
-				if (a.Name.Contains(ActorInfo.AbstractActorPrefix))
+				if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
 					continue;
 
 				// Actor must have a preview associated with it.
-				if (!a.HasTraitInfo<IRenderActorPreviewInfo>())
+				if (!actor.HasTraitInfo<IRenderActorPreviewInfo>())
 					continue;
 
-				var (actor, properties) = Clone(a);
+				//var (actor, properties) = Clone(a);
+				//var actor = Clone(a);
 
 				var editorData = actor.TraitInfoOrDefault<MapEditorDataInfo>();
 
@@ -236,16 +243,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (editorData == null || editorData.Categories == null)
 					continue;
 
+				//var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(ti => ti.EnabledByDefault);
 				var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(ti => ti.EnabledByDefault);
 				var searchTerms = new List<string>() { actor.Name };
 				if (tooltip != null)
 				{
 					var actorName = TranslationProvider.GetString(tooltip.Name);
 					searchTerms.Add(actorName);
-					allActorsTemp.Add(new ActorSelectorActor(actor, properties, searchTerms.ToArray(), $"{actorName} ({actor.Name})"));
+					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes.ToLines(), searchTerms.ToArray(), $"{actorName} ({actor.Name})"));
 				}
 				else
-					allActorsTemp.Add(new ActorSelectorActor(actor, properties, searchTerms.ToArray(), actor.Name));
+					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes.ToLines(), searchTerms.ToArray(), actor.Name));
 			}
 
 			customSequences = Clone(world.Map.Sequences);
@@ -277,7 +285,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			allActors = allActorsTemp.ToArray();
 			filteredActors = allActors.ToList();
 
-			InitializeActorList();
+			InitializeActorList(modData);
 
 			searchTextField = widget.Get<TextFieldWidget>("SEARCH_TEXTFIELD");
 			searchTextField.OnEscKey = _ =>
@@ -304,7 +312,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				else
 					filteredActors.AddRange(allActors);
 
-				InitializeActorList();
+				InitializeActorList(modData);
 			};
 
 			var saveButton = panel.GetOrNull<ButtonWidget>("EXPORT_BUTTON");
@@ -361,6 +369,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
+		void SetUpTextFieldNew(TextFieldWidget textField, string initialValue, Action<string> action)
+		{
+			textField.Text = initialValue;
+
+			textField.OnEscKey = _ => { textField.YieldKeyboardFocus(); return true; };
+			textField.OnEnterKey = _ => { action(textField.Text); textField.YieldKeyboardFocus(); return true; };
+			typableFields.Add(textField);
+		}
+
 		void SetUpTextField(TextFieldWidget textField, string initialValue, Action<string> onTextEdited)
 		{
 			textField.Text = initialValue;
@@ -393,6 +410,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			return assetTypesPanel;
+		}
+
+		Widget SetEditorFieldsInner(string field, Action<string> setValue)
+		{
+			var template = stringOptionTemplate.Clone();
+			//template.Get<LabelWidget>("LABEL").GetText = () => field;
+
+			SetUpTextFieldNew(template.Get<TextFieldWidget>("VALUE"), field, text => setValue(text));
+
+			return template;
 		}
 
 		Widget SetEditorFieldsInner(Type fieldType, string fieldName, object initialValue, Action<object> setValue)
@@ -524,6 +551,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return null;
 		}
 
+		Widget SetEditorFields(string field, Action<string, string> editAction)
+		{
+			return SetEditorFieldsInner(field, val => editAction(field, val));
+		}
+
 		Widget SetEditorFields(FieldInfo field, object obj, Action<string, object> editAction)
 		{
 			var attribute = field.GetCustomAttribute<AssetEditorAttribute>();
@@ -592,7 +624,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (widgets.Count > 0)
 			{
 				var template = optionTemplate.Clone();
-				template.Get<LabelWidget>("TITLE").GetText = () => name;
+				//template.Get<LabelWidget>("TITLE").GetText = () => name;
 
 				var height = 0;
 				foreach (var w in widgets)
@@ -667,7 +699,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			UpdateEditorFields();
 		}
 
-		void SetPreview(ActorSelectorActor a)
+		void SetPreview(ActorSelectorActor a, ModData modData)
 		{
 			allEditorFields.Clear();
 			initContainer.RemoveChildren();
@@ -687,19 +719,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					td.Add(o);
 
 			preview.SetPreview(actor, td);
-
 			foreach (var editableProperties in a.Fields) // editableProperties is the list of fields for a given trait
 			{
-				var trait = editableProperties.Key;
-				var traitName = string.IsNullOrEmpty(trait.InstanceName)
-					? trait.GetType().Name[..^4]
-					: trait.GetType().Name[..^4] + '@' + trait.InstanceName;
-
-				var widget = SetEditorTemplate(traitName,
-					editableProperties.Value
-					.Select(f => SetEditorFields(f, trait, (field, value) => EditActor(actor.Name, traitName, field, value)))
-					.Where(w => w != null)
-					.ToList());
+				var trait = editableProperties;
+				var widget = SetEditorTemplate(trait,
+					new List<Widget>() { SetEditorFields(trait, (field, value) => actor.EditTrait(modData.ObjectCreator, trait, value, ActorInfo.RulesType.Resolved)) });
+					//editableProperties.Value
+					////.Select(f => SetEditorFields(f, trait, (field, value) => EditActor(actor.Name, traitName, field, value)))
+					//.Select(f => SetEditorFields(f, trait, (field, value) => { }))
+					//.Where(w => w != null)
+					//.ToList());
 
 				if (widget != null)
 					allEditorFields.Add(new AssetFieldSelector(AssetType.Traits, widget));
@@ -862,7 +891,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				});
 		}
 
-		public static (ActorInfo Actor, Dictionary<TraitInfo, List<FieldInfo>> Traits) Clone(ActorInfo actor)
+		//public static (ActorInfo Actor, Dictionary<TraitInfo, List<FieldInfo>> Traits) Clone(ActorInfo actor)
+		public static ActorInfo Clone(ActorInfo actor)
 		{
 			var clonedTraits = new List<TraitInfo>();
 			foreach (var trait in actor.TraitInfos<TraitInfo>())
@@ -870,7 +900,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic)
 					.Invoke(trait, null));
 
-			return (new ActorInfo(actor.Name, clonedTraits.ToArray()), GetEditableFields(clonedTraits));
+			//return (new ActorInfo(actor.Name, clonedTraits.ToArray()), GetEditableFields(clonedTraits));
+			return new ActorInfo(actor.Name, actor.ActorResolvedRules, actor.ActorUnresolvedRules, clonedTraits.ToArray());
 		}
 
 		public static SequenceSet Clone(SequenceSet sequenceSet)
@@ -958,7 +989,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return editableProperties;
 		}
 
-		void InitializeActorList()
+		void InitializeActorList(ModData modData)
 		{
 			actorList.RemoveChildren();
 
@@ -967,7 +998,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var actor = a.Actor;
 				var item = ScrollItemWidget.Setup(template,
 					() => actor == selectedActor,
-					() => SetPreview(a));
+					() => SetPreview(a, modData));
 
 				var label = item.Get<LabelWithTooltipWidget>("TITLE");
 				WidgetUtils.TruncateLabelToTooltip(label, a.Name);
@@ -976,7 +1007,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			if (filteredActors.Count > 0 && (selectedActor == null || !filteredActors.Any(a => a.Actor == selectedActor)))
-				SetPreview(filteredActors[0]);
+				SetPreview(filteredActors[0], modData);
 		}
 	}
 }

@@ -101,7 +101,7 @@ Background@ASSETEDITOR_PANEL:
 					Children:
 						Container@OPTION_TEMPLATE:
 							Width: PARENT_RIGHT - 24
-							Height: 42
+							Height: 30
 							Children:
 								Label@TITLE:
 									X: 5
@@ -121,8 +121,8 @@ Background@ASSETEDITOR_PANEL:
 											Height: 16
 											Align: Right
 										TextField@VALUE:
-											X: 100
-											Width: 100
+											X: 5
+											Width: 190
 											Height: 20
 											Type: General
 								Container@INT_OPTION_TEMPLATE:
