@@ -75,7 +75,7 @@ namespace OpenRA
 		}
 
 		public readonly SourceLocation Location;
-		public readonly string Key;
+		public string Key;
 		public readonly MiniYaml Value;
 		public readonly string Comment;
 
