@@ -74,6 +74,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly ScrollPanelWidget optionsContainer;
 
 		readonly HashSet<TextFieldWidget> typableFields = new();
+		readonly HashSet<ButtonWidget> buttonFields = new();
 
 		readonly ActorPreviewWidget preview;
 		readonly TextFieldWidget searchTextField;
@@ -370,14 +371,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		void SetUpTextFieldNew(int lineCount, TextFieldWidget textField, string initialValue, Action<string> action)
+		void SetUpButtonFieldNew(int lineCount, ButtonWidget buttonField, string initialValue, Action<string> action)
 		{
-			textField.Bounds.Height *= lineCount;
-			textField.Text = initialValue;
+			buttonField.Bounds.Height *= lineCount;
+			buttonField.GetText = () => initialValue;
 
-			textField.OnEscKey = _ => { textField.YieldKeyboardFocus(); return true; };
-			textField.OnEnterKey = _ => { action(textField.Text); textField.YieldKeyboardFocus(); return true; };
-			typableFields.Add(textField);
+			//textField.OnEscKey = _ => { textField.YieldKeyboardFocus(); return true; };
+			buttonField.OnClick = () => { action(buttonField.Text); buttonField.YieldKeyboardFocus(); };
+			buttonFields.Add(buttonField);
 		}
 
 		void SetUpTextField(TextFieldWidget textField, string initialValue, Action<string> onTextEdited)
@@ -418,7 +419,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			var template = stringOptionTemplate.Clone();
 			var traitNodesText = trait.Value.Nodes.ToLines().Prepend(trait.Key);
-			SetUpTextFieldNew(traitNodesText.Count(), template.Get<TextFieldWidget>("VALUE"),
+			SetUpButtonFieldNew(traitNodesText.Count(), template.Get<ButtonWidget>("VALUE"),
 				string.Join("\n", traitNodesText), text => setValue(text));
 			return template;
 		}
@@ -440,17 +441,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				return template;
 			}
-			else if (fieldType == typeof(string))
-			{
-				var template = stringOptionTemplate.Clone();
-				template.Get<LabelWidget>("LABEL").GetText = () => fieldName;
+			//else if (fieldType == typeof(string))
+			//{
+			//	var template = stringOptionTemplate.Clone();
+			//	template.Get<LabelWidget>("LABEL").GetText = () => fieldName;
 
-				SetUpTextField(template.Get<TextFieldWidget>("VALUE"),
-					initialValue != null ? initialValue.ToString() : "",
-					text => setValue(text));
+			//	SetUpTextField(template.Get<TextFieldWidget>("VALUE"),
+			//		initialValue != null ? initialValue.ToString() : "",
+			//		text => setValue(text));
 
-				return template;
-			}
+			//	return template;
+			//}
 			else if (fieldType == typeof(float))
 			{
 				var template = floatOptionTemplate.Clone();
@@ -625,7 +626,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var template = optionTemplate.Clone();
 			var height = w.Bounds.Y + w.Bounds.Height * lineCount;
 			template.Bounds = new WidgetBounds(template.Bounds.X, template.Bounds.Y, template.Bounds.Width, template.Bounds.Height + height);
-			Console.WriteLine($"X: {w.Bounds.X}, Y: {w.Bounds.X}, Width: {w.Bounds.Width}, Height: {w.Bounds.Height}");
+			//Console.WriteLine($"X: {w.Bounds.X}, Y: {w.Bounds.X}, Width: {w.Bounds.Width}, Height: {w.Bounds.Height}");
 			template.AddChild(w);
 			return template;
 		}
