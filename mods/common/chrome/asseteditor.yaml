@@ -120,11 +120,11 @@ Background@ASSETEDITOR_PANEL:
 											Width: 90
 											Height: 16
 											Align: Right
-										TextField@VALUE:
+										Button@VALUE:
 											X: 5
 											Width: 190
 											Height: 20
-											Type: General
+											Align: Left
 								Container@INT_OPTION_TEMPLATE:
 									Y: 15
 									Width: PARENT_RIGHT
