@@ -101,15 +101,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			public readonly ActorInfo Actor;
 			//public readonly Dictionary<TraitInfo, List<FieldInfo>> Fields;
-			public readonly IEnumerable<string> Fields;
+			public readonly IEnumerable<MiniYamlNode> Fields;
 			public readonly string[] SearchTerms;
 			public readonly string Name;
 
-			public ActorSelectorActor(ActorInfo actor, IEnumerable<string> traitStrings,
+			public ActorSelectorActor(ActorInfo actor, IEnumerable<MiniYamlNode> traits,
 				string[] searchTerms, string name)
 			{
 				Actor = actor;
-				Fields = traitStrings;
+				Fields = traits;
 				SearchTerms = searchTerms;
 				Name = name;
 			}
@@ -216,7 +216,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			//rules = world.Map.Rules;
 			manifest = modData.Manifest;
-			rules = Ruleset.LoadDefaults(modData);
+			//rules = Ruleset.LoadDefaults(modData);
+			rules = modData.DefaultRules;
 			//var fs = modData.DefaultFileSystem;
 			//var rules = MiniYaml.Load(fs, manifest.Rules, null);
 
@@ -250,10 +251,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					var actorName = TranslationProvider.GetString(tooltip.Name);
 					searchTerms.Add(actorName);
-					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes.ToLines(), searchTerms.ToArray(), $"{actorName} ({actor.Name})"));
+					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes, searchTerms.ToArray(), $"{actorName} ({actor.Name})"));
 				}
 				else
-					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes.ToLines(), searchTerms.ToArray(), actor.Name));
+					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes, searchTerms.ToArray(), actor.Name));
 			}
 
 			customSequences = Clone(world.Map.Sequences);
@@ -369,8 +370,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		void SetUpTextFieldNew(TextFieldWidget textField, string initialValue, Action<string> action)
+		void SetUpTextFieldNew(int lineCount, TextFieldWidget textField, string initialValue, Action<string> action)
 		{
+			textField.Bounds.Height *= lineCount;
 			textField.Text = initialValue;
 
 			textField.OnEscKey = _ => { textField.YieldKeyboardFocus(); return true; };
@@ -412,13 +414,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return assetTypesPanel;
 		}
 
-		Widget SetEditorFieldsInner(string field, Action<string> setValue)
+		Widget SetEditorFieldsInner(MiniYamlNode trait, Action<string> setValue)
 		{
 			var template = stringOptionTemplate.Clone();
-			//template.Get<LabelWidget>("LABEL").GetText = () => field;
-
-			SetUpTextFieldNew(template.Get<TextFieldWidget>("VALUE"), field, text => setValue(text));
-
+			var traitNodesText = trait.Value.Nodes.ToLines().Prepend(trait.Key);
+			SetUpTextFieldNew(traitNodesText.Count(), template.Get<TextFieldWidget>("VALUE"),
+				string.Join("\n", traitNodesText), text => setValue(text));
 			return template;
 		}
 
@@ -551,9 +552,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return null;
 		}
 
-		Widget SetEditorFields(string field, Action<string, string> editAction)
+		Widget SetEditorFields(MiniYamlNode trait, Action<string, string> editAction)
 		{
-			return SetEditorFieldsInner(field, val => editAction(field, val));
+			return SetEditorFieldsInner(trait, val => editAction(trait.Key, val));
 		}
 
 		Widget SetEditorFields(FieldInfo field, object obj, Action<string, object> editAction)
@@ -619,7 +620,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return null;
 		}
 
-		Widget SetEditorTemplate(string name, ICollection<Widget> widgets)
+		Widget CreateFieldWidget(int lineCount, Widget w)
+		{
+			var template = optionTemplate.Clone();
+			var height = w.Bounds.Y + w.Bounds.Height * lineCount;
+			template.Bounds = new WidgetBounds(template.Bounds.X, template.Bounds.Y, template.Bounds.Width, template.Bounds.Height + height);
+			Console.WriteLine($"X: {w.Bounds.X}, Y: {w.Bounds.X}, Width: {w.Bounds.Width}, Height: {w.Bounds.Height}");
+			template.AddChild(w);
+			return template;
+		}
+
+		Widget CreateFieldWidget(int lineCount, string name, ICollection<Widget> widgets)
 		{
 			if (widgets.Count > 0)
 			{
@@ -629,15 +640,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var height = 0;
 				foreach (var w in widgets)
 				{
-					template.AddChild(w);
 					if (height == 0)
-						height = w.Bounds.Y + w.Bounds.Height;
+					{
+						height = w.Bounds.Y + w.Bounds.Height * lineCount;
+						template.Bounds = new WidgetBounds(template.Bounds.X, template.Bounds.Y,
+							template.Bounds.Width, template.Bounds.Height + height);
+					}
 					else
 					{
-						w.Bounds.Y = height;
-						height += w.Bounds.Height;
-						template.Bounds.Height += w.Bounds.Height;
+						height += w.Bounds.Height * lineCount;
+						template.Bounds = new WidgetBounds(template.Bounds.X, height, template.Bounds.Width, template.Bounds.Height + height);
 					}
+
+					template.AddChild(w);
 				}
 
 				return template;
@@ -685,7 +700,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 							continue;
 					}
 
-					var widget = SetEditorTemplate(sequenceName, sequence.GetType()
+					var widget = CreateFieldWidget(1, sequenceName, sequence.GetType()
 						.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
 						.Select(f => SetEditorFields(f, sequence, (field, value) => EditSequence(image, sequence.Name, field, value)))
 						.Where(w => w != null)
@@ -722,8 +737,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			foreach (var editableProperties in a.Fields) // editableProperties is the list of fields for a given trait
 			{
 				var trait = editableProperties;
-				var widget = SetEditorTemplate(trait,
-					new List<Widget>() { SetEditorFields(trait, (field, value) => actor.EditTrait(modData.ObjectCreator, trait, value, ActorInfo.RulesType.Resolved)) });
+				var widget = CreateFieldWidget(trait.Value.Nodes.ToLines().Prepend(trait.Key).Count(),
+								SetEditorFieldsInner(trait, value =>
+									actor.EditTrait(modData.ObjectCreator, trait.Key, value, ActorInfo.RulesType.Unresolved)));
+
 					//editableProperties.Value
 					////.Select(f => SetEditorFields(f, trait, (field, value) => EditActor(actor.Name, traitName, field, value)))
 					//.Select(f => SetEditorFields(f, trait, (field, value) => { }))

@@ -101,17 +101,17 @@ Background@ASSETEDITOR_PANEL:
 					Children:
 						Container@OPTION_TEMPLATE:
 							Width: PARENT_RIGHT - 24
-							Height: 30
+							Height: 10
 							Children:
 								Label@TITLE:
 									X: 5
 									Y: 1
 									Width: PARENT_RIGHT
-									Height: 10
+									Height: 1
 									Font: TinyBold
 									Align: Center
 								Container@STRING_OPTION_TEMPLATE:
-									Y: 15
+									Y: 1
 									Width: PARENT_RIGHT
 									Height: 26
 									Children:
