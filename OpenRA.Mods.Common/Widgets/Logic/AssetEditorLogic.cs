@@ -51,7 +51,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		ActorInfo selectedActor;
 
 		readonly Ruleset rules;
-		readonly Manifest manifest;
 		readonly ActorSelectorActor[] allActors;
 		readonly List<ActorSelectorActor> filteredActors = new();
 		readonly PlayerReference selectedOwner;
@@ -101,7 +100,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly struct ActorSelectorActor
 		{
 			public readonly ActorInfo Actor;
-			//public readonly Dictionary<TraitInfo, List<FieldInfo>> Fields;
 			public readonly IEnumerable<MiniYamlNode> Fields;
 			public readonly string[] SearchTerms;
 			public readonly string Name;
@@ -212,15 +210,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			template = panel.Get<ScrollItemWidget>("ASSET_TEMPLATE");
 
 			// Define set of actors to manipulate
-
-
-
-			//rules = world.Map.Rules;
-			manifest = modData.Manifest;
-			//rules = Ruleset.LoadDefaults(modData);
+			var manifest = modData.Manifest;
 			rules = modData.DefaultRules;
-			//var fs = modData.DefaultFileSystem;
-			//var rules = MiniYaml.Load(fs, manifest.Rules, null);
 
 			var allActorsTemp = new List<ActorSelectorActor>();
 			foreach (var actor in rules.Actors.Values)
@@ -236,16 +227,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (!actor.HasTraitInfo<IRenderActorPreviewInfo>())
 					continue;
 
-				//var (actor, properties) = Clone(a);
-				//var actor = Clone(a);
-
 				var editorData = actor.TraitInfoOrDefault<MapEditorDataInfo>();
 
 				// Actor must be included in at least one category.
 				if (editorData == null || editorData.Categories == null)
 					continue;
 
-				//var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(ti => ti.EnabledByDefault);
 				var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(ti => ti.EnabledByDefault);
 				var searchTerms = new List<string>() { actor.Name };
 				if (tooltip != null)
@@ -371,13 +358,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		void SetUpButtonFieldNew(int lineCount, ButtonWidget buttonField, string initialValue, Action<string> action)
+		void SetUpButtonFieldNew(ButtonWidget buttonField, MiniYamlNode traitNode, Action action)
 		{
-			buttonField.Bounds.Height *= lineCount;
-			buttonField.GetText = () => initialValue;
+			var traitNodesText = traitNode.Value.Nodes.ToLines().Prepend(traitNode.Key);
+			var lineCount = traitNodesText.Count();
+			var caption = string.Join("\n", traitNodesText);
 
-			//textField.OnEscKey = _ => { textField.YieldKeyboardFocus(); return true; };
-			buttonField.OnClick = () => { action(buttonField.Text); buttonField.YieldKeyboardFocus(); };
+			buttonField.Bounds.Height *= lineCount;
+			buttonField.GetText = () => caption;
+
+			buttonField.OnClick = action;
 			buttonFields.Add(buttonField);
 		}
 
@@ -415,12 +405,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return assetTypesPanel;
 		}
 
-		Widget SetEditorFieldsInner(MiniYamlNode trait, Action<string> setValue)
+		Widget SetEditorFieldsInner(MiniYamlNode traitNode, Action action)
 		{
 			var template = stringOptionTemplate.Clone();
-			var traitNodesText = trait.Value.Nodes.ToLines().Prepend(trait.Key);
-			SetUpButtonFieldNew(traitNodesText.Count(), template.Get<ButtonWidget>("VALUE"),
-				string.Join("\n", traitNodesText), text => setValue(text));
+			SetUpButtonFieldNew(template.Get<ButtonWidget>("VALUE"), traitNode, action);
 			return template;
 		}
 
@@ -553,11 +541,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return null;
 		}
 
-		Widget SetEditorFields(MiniYamlNode trait, Action<string, string> editAction)
-		{
-			return SetEditorFieldsInner(trait, val => editAction(trait.Key, val));
-		}
-
 		Widget SetEditorFields(FieldInfo field, object obj, Action<string, object> editAction)
 		{
 			var attribute = field.GetCustomAttribute<AssetEditorAttribute>();
@@ -626,7 +609,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var template = optionTemplate.Clone();
 			var height = w.Bounds.Y + w.Bounds.Height * lineCount;
 			template.Bounds = new WidgetBounds(template.Bounds.X, template.Bounds.Y, template.Bounds.Width, template.Bounds.Height + height);
-			//Console.WriteLine($"X: {w.Bounds.X}, Y: {w.Bounds.X}, Width: {w.Bounds.Width}, Height: {w.Bounds.Height}");
 			template.AddChild(w);
 			return template;
 		}
@@ -636,7 +618,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (widgets.Count > 0)
 			{
 				var template = optionTemplate.Clone();
-				//template.Get<LabelWidget>("TITLE").GetText = () => name;
+				template.Get<LabelWidget>("TITLE").GetText = () => name;
 
 				var height = 0;
 				foreach (var w in widgets)
@@ -737,16 +719,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			preview.SetPreview(actor, td);
 			foreach (var editableProperties in a.Fields) // editableProperties is the list of fields for a given trait
 			{
-				var trait = editableProperties;
-				var widget = CreateFieldWidget(trait.Value.Nodes.ToLines().Prepend(trait.Key).Count(),
-								SetEditorFieldsInner(trait, value =>
-									actor.EditTrait(modData.ObjectCreator, trait.Key, value, ActorInfo.RulesType.Unresolved)));
+				var traitNode = editableProperties;
 
-					//editableProperties.Value
-					////.Select(f => SetEditorFields(f, trait, (field, value) => EditActor(actor.Name, traitName, field, value)))
-					//.Select(f => SetEditorFields(f, trait, (field, value) => { }))
-					//.Where(w => w != null)
-					//.ToList());
+				void OpenEditTraitWindow()
+				{
+					Game.OpenWindow("ASSETEDITOR_SUBPANEL", new WidgetArgs
+						{
+							{ "onExit", () => { } },
+							{ "traitNode", traitNode },
+							{ "actor", actor }
+						});
+				}
+
+				var traitNodeText = traitNode.Value.Nodes.ToLines().Prepend(traitNode.Key);
+				var widget = CreateFieldWidget(traitNodeText.Count(),
+								SetEditorFieldsInner(traitNode, OpenEditTraitWindow));
 
 				if (widget != null)
 					allEditorFields.Add(new AssetFieldSelector(AssetType.Traits, widget));
@@ -907,19 +894,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						new Dictionary<string, object>() { { fieldName, value } }
 					}
 				});
-		}
-
-		//public static (ActorInfo Actor, Dictionary<TraitInfo, List<FieldInfo>> Traits) Clone(ActorInfo actor)
-		public static ActorInfo Clone(ActorInfo actor)
-		{
-			var clonedTraits = new List<TraitInfo>();
-			foreach (var trait in actor.TraitInfos<TraitInfo>())
-				clonedTraits.Add((TraitInfo)trait.GetType()
-					.GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic)
-					.Invoke(trait, null));
-
-			//return (new ActorInfo(actor.Name, clonedTraits.ToArray()), GetEditableFields(clonedTraits));
-			return new ActorInfo(actor.Name, actor.ActorResolvedRules, actor.ActorUnresolvedRules, clonedTraits.ToArray());
 		}
 
 		public static SequenceSet Clone(SequenceSet sequenceSet)
