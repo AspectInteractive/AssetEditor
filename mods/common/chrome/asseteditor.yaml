@@ -118,7 +118,7 @@ Background@ASSETEDITOR_PANEL:
 										Label@LABEL:
 											X: 5
 											Width: 90
-											Height: 16
+											Height: 1
 											Align: Right
 										Button@VALUE:
 											X: 5
@@ -308,3 +308,53 @@ Background@ASSETEDITOR_PANEL:
 			Font: Bold
 			Text: button-back
 		TooltipContainer@TOOLTIP_CONTAINER:
+Background@ASSETEDITOR_SUBPANEL:
+	Logic: AssetEditorTraitWindowLogic
+	X: (WINDOW_RIGHT - WIDTH) / 2
+	Y: (WINDOW_BOTTOM - HEIGHT) / 2
+	Width: 450
+	Height: 300
+	Children:
+		Button@CLOSE_BUTTON:
+			Key: escape
+			X: PARENT_RIGHT - WIDTH - 15
+			Y: PARENT_BOTTOM - HEIGHT - 15
+			Width: 160
+			Height: 25
+			Font: Bold
+			Text: button-back
+		ScrollPanel@EDITOR_SCROLLPANEL:
+			X: 30
+			Y: 30
+			Width: PARENT_RIGHT - 100
+			Height: PARENT_BOTTOM - 100
+			CollapseHiddenChildren: True
+			TopBottomSpacing: 10
+			Children:
+				Container@OPTION_TEMPLATE:
+					Width: PARENT_RIGHT - 24
+					Height: 10
+					Children:
+						Label@TITLE:
+							X: 5
+							Y: 1
+							Width: PARENT_RIGHT
+							Height: 1
+							Font: TinyBold
+							Align: Center
+						Container@STRING_OPTION_TEMPLATE:
+							X: 5
+							Y: 5
+							Width: PARENT_RIGHT
+							Height: 26
+							Children:
+								Label@LABEL:
+									X: 5
+									Width: 90
+									Height: 1
+									Align: Right
+								Button@VALUE:
+									X: 5
+									Width: 190
+									Height: 20
+									Align: Left
