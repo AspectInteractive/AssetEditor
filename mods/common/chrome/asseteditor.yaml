@@ -353,8 +353,7 @@ Background@ASSETEDITOR_SUBPANEL:
 									Width: 90
 									Height: 1
 									Align: Right
-								Button@VALUE:
+								TextField@VALUE:
 									X: 5
 									Width: 190
 									Height: 20
-									Align: Left
