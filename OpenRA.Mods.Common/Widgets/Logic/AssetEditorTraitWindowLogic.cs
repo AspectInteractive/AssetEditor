@@ -14,14 +14,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		int heightInc = 20;
 
 		[ObjectCreator.UseCtor]
-		public AssetEditorTraitWindowLogic(Widget widget, Action onExit, MiniYamlNode traitNode, ActorInfo actor,
+		public AssetEditorTraitWindowLogic(Widget widget, Action onExit, MiniYamlNodeBuilder traitNode, ActorInfo actor,
 			ModData modData)
 		{
 			container = widget;
 			panel = widget.Get("EDITOR_SCROLLPANEL");
 
 			CreateFieldWidget(SetEditorFieldsInner(traitNode, value =>
-						actor.EditTrait(modData.ObjectCreator, traitNode.Key, value, ActorInfo.RulesType.Unresolved)));
+				{
+					actor.EditTraitOrField(traitNode, value);
+					actor.LoadTraits(modData.ObjectCreator, actor.ActorUnresolvedRules, true);
+				}));
 
 			GenerateWidgetChildren(traitNode, actor, modData);
 
@@ -36,14 +39,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		public void GenerateWidgetChildren(MiniYamlNode traitNode, ActorInfo actor, ModData modData)
+		public void GenerateWidgetChildren(MiniYamlNodeBuilder traitNode, ActorInfo actor, ModData modData)
 		{
 			foreach (var fieldNode in traitNode.Value.Nodes)
 			{
 				CreateFieldWidget(SetEditorFieldsInner(fieldNode, value =>
-								actor.EditTrait(modData.ObjectCreator, fieldNode.Key, value, ActorInfo.RulesType.Unresolved)));
+				{
+					actor.EditTraitOrField(fieldNode, value);
+					actor.LoadTraits(modData.ObjectCreator, actor.ActorUnresolvedRules, true);
+				}));
 
-				if (fieldNode.Value.Nodes.Length > 0)
+				if (fieldNode.Value.Nodes.Count > 0)
 					GenerateWidgetChildren(fieldNode, actor, modData);
 			}
 		}
@@ -64,7 +70,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			textFields.Add(textField);
 		}
 
-		Widget SetEditorFieldsInner(MiniYamlNode fieldNode, Action<string> action)
+		Widget SetEditorFieldsInner(MiniYamlNodeBuilder fieldNode, Action<string> action)
 		{
 			var template = new TextFieldWidget
 			{
@@ -72,7 +78,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				Bounds = traitTextFieldBounds
 			};
 
-			var traitNodeText = fieldNode.Key + (fieldNode.Value.Nodes.Length == 0 ? ": " + fieldNode.Value.Value : "");
+			var traitNodeText = fieldNode.Key + (fieldNode.Value.Nodes.Count == 0 ? ": " + fieldNode.Value.Value : "");
 			SetUpTextFieldNew(template.Get<TextFieldWidget>("VALUE"), traitNodeText, x => action(x));
 			return template;
 		}

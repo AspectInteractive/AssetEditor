@@ -50,7 +50,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		ActorInfo selectedActor;
 
-		readonly Ruleset rules;
 		readonly ActorSelectorActor[] allActors;
 		readonly List<ActorSelectorActor> filteredActors = new();
 		readonly PlayerReference selectedOwner;
@@ -100,11 +99,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly struct ActorSelectorActor
 		{
 			public readonly ActorInfo Actor;
-			public readonly IEnumerable<MiniYamlNode> Fields;
+			public readonly IEnumerable<MiniYamlNodeBuilder> Fields;
 			public readonly string[] SearchTerms;
 			public readonly string Name;
 
-			public ActorSelectorActor(ActorInfo actor, IEnumerable<MiniYamlNode> traits,
+			public ActorSelectorActor(ActorInfo actor, IEnumerable<MiniYamlNodeBuilder> traits,
 				string[] searchTerms, string name)
 			{
 				Actor = actor;
@@ -211,39 +210,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			// Define set of actors to manipulate
 			var manifest = modData.Manifest;
-			rules = modData.DefaultRules;
 
-			var allActorsTemp = new List<ActorSelectorActor>();
-			foreach (var actor in rules.Actors.Values)
-			{
-				if (actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
-					continue;
-
-				// Partial templates are not allowed.
-				if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
-					continue;
-
-				// Actor must have a preview associated with it.
-				if (!actor.HasTraitInfo<IRenderActorPreviewInfo>())
-					continue;
-
-				var editorData = actor.TraitInfoOrDefault<MapEditorDataInfo>();
-
-				// Actor must be included in at least one category.
-				if (editorData == null || editorData.Categories == null)
-					continue;
-
-				var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(ti => ti.EnabledByDefault);
-				var searchTerms = new List<string>() { actor.Name };
-				if (tooltip != null)
-				{
-					var actorName = TranslationProvider.GetString(tooltip.Name);
-					searchTerms.Add(actorName);
-					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes, searchTerms.ToArray(), $"{actorName} ({actor.Name})"));
-				}
-				else
-					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes, searchTerms.ToArray(), actor.Name));
-			}
+			var allActorsTemp = LoadActorSelectorActors(modData.DefaultRules);
 
 			customSequences = Clone(world.Map.Sequences);
 			preview = panel.Get<ActorPreviewWidget>("ACTOR_PREVIEW");
@@ -358,7 +326,44 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-		void SetUpButtonFieldNew(ButtonWidget buttonField, MiniYamlNode traitNode, Action action)
+		static List<ActorSelectorActor> LoadActorSelectorActors(Ruleset rules)
+		{
+			var allActorsTemp = new List<ActorSelectorActor>();
+			foreach (var actor in rules.Actors.Values)
+			{
+				if (actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
+					continue;
+
+				// Partial templates are not allowed.
+				if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
+					continue;
+
+				// Actor must have a preview associated with it.
+				if (!actor.HasTraitInfo<IRenderActorPreviewInfo>())
+					continue;
+
+				var editorData = actor.TraitInfoOrDefault<MapEditorDataInfo>();
+
+				// Actor must be included in at least one category.
+				if (editorData == null || editorData.Categories == null)
+					continue;
+
+				var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(ti => ti.EnabledByDefault);
+				var searchTerms = new List<string>() { actor.Name };
+				if (tooltip != null)
+				{
+					var actorName = TranslationProvider.GetString(tooltip.Name);
+					searchTerms.Add(actorName);
+					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes, searchTerms.ToArray(), $"{actorName} ({actor.Name})"));
+				}
+				else
+					allActorsTemp.Add(new ActorSelectorActor(actor, actor.ActorUnresolvedRules.Value.Nodes, searchTerms.ToArray(), actor.Name));
+			}
+
+			return allActorsTemp;
+		}
+
+		void SetUpButtonFieldNew(ButtonWidget buttonField, MiniYamlNodeBuilder traitNode, Action action)
 		{
 			var traitNodesText = traitNode.Value.Nodes.ToLines().Prepend(traitNode.Key);
 			var lineCount = traitNodesText.Count();
@@ -405,7 +410,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return assetTypesPanel;
 		}
 
-		Widget SetEditorFieldsInner(MiniYamlNode traitNode, Action action)
+		Widget SetEditorFieldsInner(MiniYamlNodeBuilder traitNode, Action action)
 		{
 			var template = stringOptionTemplate.Clone();
 			SetUpButtonFieldNew(template.Get<ButtonWidget>("VALUE"), traitNode, action);
@@ -725,7 +730,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					Game.OpenWindow("ASSETEDITOR_SUBPANEL", new WidgetArgs
 						{
-							{ "onExit", () => { } },
+							{ "onExit", () => SetPreview(a, modData) },
 							{ "traitNode", traitNode },
 							{ "actor", actor }
 						});
