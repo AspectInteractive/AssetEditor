@@ -191,6 +191,41 @@ namespace OpenRA
 			return LoadFilteredYaml(fileSystem, yamlNodes, filterNode).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), debugName, null, null);
 		}
 
+		public void LoadActorTraitsFromRuleFile(ModData modData, string ruleFile)
+		{
+			LoadActorTraitsFromRuleFile(modData, new string[] { ruleFile });
+		}
+
+		public void LoadActorTraitsFromRuleFile(ModData modData, string[] ruleFiles = null)
+		{
+			if (ruleFiles == null || ruleFiles.Length == 0)
+			{
+				Console.WriteLine("No matching actor file found, reloading all actor files.");
+				ruleFiles = modData.Manifest.Rules;
+			}
+
+			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, ruleFiles, null);
+
+			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
+			var actorUnresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
+
+			foreach (var actorKey in actorUnresolvedRules)
+			{
+				var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey.Key, StringComparison.InvariantCultureIgnoreCase)).Value;
+
+				if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
+					continue;
+
+				// Partial templates are not allowed.
+				if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
+					continue;
+
+				var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
+
+				actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+			}
+		}
+
 		public static Ruleset LoadDefaults(ModData modData)
 		{
 			var m = modData.Manifest;
@@ -201,9 +236,7 @@ namespace OpenRA
 			{
 				bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
 				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(fs, MiniYaml.LoadWithoutInherits(fs, m.Rules, null), "UnresolvedRulesYaml", FilterNode);
-				var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null);
-				//var unresolvedRulesYaml = MiniYaml.LoadWithoutInherits(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "UnresolvedRulesYaml", null, null);
-				//var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), "ResolvedRulesYaml", null, null);
+				var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null); // needs to not filter in order to include Inheritance nodes for AtomicMerge
 
 				var actors = MergeOrDefault("Manifest,Rules", fs, m.Rules, null, null,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k),
@@ -266,7 +299,7 @@ namespace OpenRA
 			{
 				bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
 				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(fileSystem, MiniYaml.LoadWithoutInherits(fileSystem, m.Rules, null), "UnresolvedRulesYaml", FilterNode);
-				var resolvedRulesYaml = LoadFilteredYaml(fileSystem, MiniYaml.Load(fileSystem, m.Rules, null), FilterNode);
+				var resolvedRulesYaml = MiniYaml.Load(fileSystem, m.Rules, null); // needs to not filter in order to include Inheritance nodes for AtomicMerge
 
 				var actors = MergeOrDefault("Rules", fileSystem, m.Rules, mapRules, dr.Actors,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k),
