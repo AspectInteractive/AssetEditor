@@ -42,8 +42,8 @@ namespace OpenRA
 		TypeDictionary traits = new();
 		List<TraitInfo> constructOrderCache = null;
 		public Ruleset Rules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
-		public MiniYamlNode ActorResolvedRules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
-		public MiniYamlNode ActorUnresolvedRules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public MiniYamlNodeBuilder ActorResolvedRules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public MiniYamlNodeBuilder ActorUnresolvedRules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
 
 		public enum RulesType
 		{
@@ -63,6 +63,12 @@ namespace OpenRA
 			Name = name;
 			Rules = rules;
 			LoadTraits(creator, node);
+		}
+
+
+		public void LoadTraits(ObjectCreator creator, MiniYamlNodeBuilder node, bool clearAllFirst = false)
+		{
+			LoadTraits(creator, new MiniYamlNode(node), clearAllFirst);
 		}
 
 		public void LoadTraits(ObjectCreator creator, MiniYamlNode node, bool clearAllFirst = false)
@@ -120,8 +126,8 @@ namespace OpenRA
 		public ActorInfo(string name, MiniYamlNode actorResolvedRules, MiniYamlNode actorUnresolvedRules, params TraitInfo[] traitInfos)
 		{
 			Name = name;
-			ActorResolvedRules = actorResolvedRules;
-			ActorUnresolvedRules = actorUnresolvedRules;
+			ActorResolvedRules = new MiniYamlNodeBuilder(actorResolvedRules);
+			ActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules);
 			foreach (var t in traitInfos)
 				traits.Add(t);
 			traits.TrimExcess();
@@ -131,8 +137,26 @@ namespace OpenRA
 		{
 
 			Rules = rules;
-			Rules.UnresolvedRulesYamlDict.TryGetValue(Name.ToLowerInvariant(), out ActorUnresolvedRules);
-			ActorResolvedRules = Rules.ResolvedRulesYaml.FirstOrDefault(s => string.Equals(s.Key, Name, StringComparison.InvariantCultureIgnoreCase));
+			Rules.UnresolvedRulesYamlDict.TryGetValue(Name.ToLowerInvariant(), out var actorUnresolvedRulesYaml);
+			ActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRulesYaml);
+			ActorResolvedRules = new MiniYamlNodeBuilder(Rules.ResolvedRulesYaml.
+				FirstOrDefault(s => string.Equals(s.Key, Name, StringComparison.InvariantCultureIgnoreCase)));
+		}
+
+		public void EditTraitOrField(MiniYamlNodeBuilder node, string newValue)
+		{
+			// For testing only
+			Console.WriteLine("~~~ BEFORE ~~~ \n" + MiniYaml.GetNodeOutputString(ActorUnresolvedRules));
+
+			var newValueList = newValue.Split(':');
+			var newValueTrait = newValueList[0];
+			var newValueValue = newValueList[1].TrimStart();
+
+			node.Key = newValueTrait;
+			node.Value.Value = newValueValue;
+
+			// For testing only
+			Console.WriteLine("~~~ AFTER ~~~ \n" + MiniYaml.GetNodeOutputString(ActorUnresolvedRules));
 		}
 
 		public void EditTrait(ObjectCreator creator, string traitName, string newName, RulesType rulesType)
@@ -143,9 +167,8 @@ namespace OpenRA
 			if (!Rules.Actors.Select(a => a.Value.TraitInfos<TraitInfo>().Select(t => t.GetType().Name == newName)).Any())
 				throw new YamlException($"New trait cannot be found: {newName}");
 
-
-			var matchingTraitNodes = new List<MiniYamlNode>();
-			MiniYamlNode rulesForReloadingTraits = null;
+			var matchingTraitNodes = new List<MiniYamlNodeBuilder>();
+			MiniYamlNodeBuilder rulesForReloadingTraits = null;
 
 			if (rulesType is RulesType.Resolved)
 			{
