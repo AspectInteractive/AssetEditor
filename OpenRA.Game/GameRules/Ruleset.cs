@@ -223,6 +223,7 @@ namespace OpenRA
 				var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
 
 				actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+				CallRulesetLoadedOnAllActors();
 			}
 		}
 
@@ -277,6 +278,25 @@ namespace OpenRA
 				LoadRuleset();
 
 			return ruleset;
+		}
+
+		public void CallRulesetLoadedOnAllActors()
+		{
+			foreach (var a in Actors.Values)
+			{
+				a.RulesetLoaded(this, a);
+				foreach (var t in a.TraitInfos<IRulesetLoaded>())
+				{
+					try
+					{
+						t.RulesetLoaded(this, a);
+					}
+					catch (YamlException e)
+					{
+						throw new YamlException($"Actor type {a.Name}: {e.Message}");
+					}
+				}
+			}
 		}
 
 		public static Ruleset LoadDefaultsForTileSet(ModData modData, string tileSet)
