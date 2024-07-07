@@ -65,7 +65,6 @@ namespace OpenRA
 			LoadTraits(creator, node);
 		}
 
-
 		public void LoadTraits(ObjectCreator creator, MiniYamlNodeBuilder node, bool clearAllFirst = false)
 		{
 			LoadTraits(creator, new MiniYamlNode(node), clearAllFirst);

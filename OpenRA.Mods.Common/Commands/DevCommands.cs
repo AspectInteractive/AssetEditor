@@ -75,6 +75,9 @@ namespace OpenRA.Mods.Common.Commands
 		[TranslationReference]
 		const string DisposeSelectedActorsDescription = "description-dispose-selected-actors";
 
+		[TranslationReference]
+		const string ReloadActorsDescription = "description-reload-actors";
+
 		readonly IDictionary<string, (string Description, Action<string, World> Handler)> commandHandlers = new Dictionary<string, (string, Action<string, World>)>
 		{
 			{ "visibility", (ToggleVisiblityDescription, Visibility) },
@@ -91,7 +94,8 @@ namespace OpenRA.Mods.Common.Commands
 			{ "player-experience", (PlayerExperienceDescription, PlayerExperience) },
 			{ "power-outage", (PowerOutageDescription, PowerOutage) },
 			{ "kill", (KillSelectedActorsDescription, Kill) },
-			{ "dispose", (DisposeSelectedActorsDescription, Dispose) }
+			{ "dispose", (DisposeSelectedActorsDescription, Dispose) },
+			{ "reload", (ReloadActorsDescription, ReloadActors) }
 		};
 
 		World world;
@@ -154,6 +158,21 @@ namespace OpenRA.Mods.Common.Commands
 			}
 
 			world.IssueOrder(giveCashOrder);
+		}
+
+		static void ReloadActors(string arg, World world)
+		{
+			var rulesFiles = Game.ModData.Manifest.Rules;
+			var defaultRules = Game.ModData.DefaultRules;
+			string matchingFile = null;
+
+			if (!string.IsNullOrEmpty(arg))
+				matchingFile = rulesFiles.FirstOrDefault(f => f.Contains(arg));
+
+			if (matchingFile != null)
+				defaultRules.LoadActorTraitsFromRuleFile(Game.ModData, matchingFile);
+			else
+				defaultRules.LoadActorTraitsFromRuleFile(Game.ModData);
 		}
 
 		static void Visibility(string arg, World world)
