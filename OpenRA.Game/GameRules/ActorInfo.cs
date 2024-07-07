@@ -72,7 +72,6 @@ namespace OpenRA
 
 		public void LoadTraits(ObjectCreator creator, MiniYamlNode node, bool clearAllFirst = false)
 		{
-			Console.WriteLine("Loading Traits.");
 			MiniYaml yaml;
 			if (Rules != null && Rules.ResolvedRulesYaml != null)
 				yaml = Ruleset.ResolveIndividualNode(node, Rules.ResolvedRulesYaml);
@@ -100,13 +99,6 @@ namespace OpenRA
 				}
 
 				traits.TrimExcess();
-				if (clearAllFirst)
-				{
-					Console.WriteLine("~~~ new traits ~~~");
-					//foreach (var trait in TraitInfos<TraitInfo>())
-					foreach (var trait in traits)
-						Console.WriteLine($"trait: {trait}");
-				}
 			}
 			catch (YamlException e)
 			{
