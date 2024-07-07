@@ -25,7 +25,7 @@ namespace OpenRA.Mods.Common.Graphics
 		public readonly int BgraSheetSize = 2048;
 		public readonly int IndexedSheetSize = 2048;
 
-		static readonly MiniYaml NoData = new(null);
+		static readonly MiniYaml NoData = new(string.Empty);
 
 		public DefaultSpriteSequenceLoader(ModData modData)
 		{
@@ -206,7 +206,7 @@ namespace OpenRA.Mods.Common.Graphics
 		[Desc("X, Y offset to apply to the depth sprite.")]
 		protected static readonly SpriteSequenceField<float2> DepthSpriteOffset = new(nameof(DepthSpriteOffset), float2.Zero);
 
-		protected static readonly MiniYaml NoData = new(null);
+		protected static readonly MiniYaml NoData = new(string.Empty);
 		protected static readonly int[] FirstFrame = { 0 };
 
 		protected readonly ISpriteSequenceLoader Loader;

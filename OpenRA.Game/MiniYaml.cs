@@ -86,6 +86,10 @@ namespace OpenRA
 			return new MiniYamlNode(Key, value, Comment, Location);
 		}
 
+		public MiniYamlNode(MiniYamlNodeBuilder node)
+			: this(node.Key, new MiniYaml(node.Value), node.Comment, node.Location)
+		{ }
+
 		public MiniYamlNode(string k, MiniYaml v, string c = null)
 		{
 			Key = k;
@@ -193,6 +197,12 @@ namespace OpenRA
 			}
 
 			return ret;
+		}
+
+		public MiniYaml(MiniYamlBuilder yaml)
+		{
+			Value = yaml.Value;
+			Nodes = yaml.Nodes.Select(n => new MiniYamlNode(n)).ToImmutableArray();
 		}
 
 		public MiniYaml(string value)
@@ -535,18 +545,29 @@ namespace OpenRA
 		/// <param name="fileName">The output file name</param>
 		/// <param name="key">The name of the first node</param>
 		/// <param name="node">The node that is being written to a file</param>
-		public static void WriteNodeToText(string folderName, string fileName, string key, MiniYaml node)
+		public static void WriteNodeToText(string folderName, string fileName, MiniYamlNode node)
 		{
-			var outputStr = $"{key}:\n";
-			foreach (var line in node.Nodes.ToLines())
-				outputStr += "\t" + line + "\n";
-			outputStr += "\n";
+			var outputStr = GetNodeOutputString(node);
 
 			var outputStrfilename = $"{fileName}";
 
 			var explicitSplit = outputStrfilename.IndexOf('|');
 			outputStrfilename = outputStrfilename[(explicitSplit + 1)..];
 			File.AppendAllText(Path.Combine(Platform.SupportDir, folderName, outputStrfilename), outputStr);
+		}
+
+		public static string GetNodeOutputString(MiniYamlNodeBuilder node)
+		{
+			return GetNodeOutputString(new MiniYamlNode(node));
+		}
+
+		public static string GetNodeOutputString(MiniYamlNode node)
+		{
+			var outputStr = $"{node.Key}: {node.Value.Value}\n";
+			foreach (var line in node.Value.Nodes.ToLines())
+				outputStr += "\t" + line + "\n";
+			outputStr += "\n";
+			return outputStr;
 		}
 
 		public static void DeleteAllFiles(string folderName)
@@ -735,10 +756,13 @@ namespace OpenRA
 
 		public MiniYamlNodeBuilder(MiniYamlNode node)
 		{
-			Location = node.Location;
-			Key = node.Key;
-			Value = new MiniYamlBuilder(node.Value);
-			Comment = node.Comment;
+			if (node != null)
+			{
+				Location = node.Location;
+				Key = node.Key;
+				Value = new MiniYamlBuilder(node.Value);
+				Comment = node.Comment;
+			}
 		}
 
 		public MiniYamlNodeBuilder(string k, MiniYamlBuilder v, string c = null)

@@ -145,7 +145,7 @@ namespace OpenRA
 			{
 				var rulesYamlNodes = MiniYaml.LoadWithoutInherits(fs, new List<string>() { ruleFile }, null);
 				foreach (var ruleNode in rulesYamlNodes)
-					MiniYaml.WriteNodeToText(outputFolder, ruleFile, ruleNode.Key, ruleNode.Value);
+					MiniYaml.WriteNodeToText(outputFolder, ruleFile, ruleNode);
 			}
 		}
 
@@ -163,7 +163,7 @@ namespace OpenRA
 			{
 				var rulesYamlNodes = MiniYaml.Load(fs, ruleFiles, null);
 				foreach (var ruleNode in rulesYamlNodes)
-					MiniYaml.WriteNodeToText(outputFolder, ruleFile, ruleNode.Key, ruleNode.Value);
+					MiniYaml.WriteNodeToText(outputFolder, ruleFile, ruleNode);
 			}
 
 		}
