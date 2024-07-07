@@ -201,8 +201,11 @@ namespace OpenRA
 
 		public MiniYaml(MiniYamlBuilder yaml)
 		{
-			Value = yaml.Value;
-			Nodes = yaml.Nodes.Select(n => new MiniYamlNode(n)).ToImmutableArray();
+			if (yaml != null)
+			{
+				Value = yaml.Value;
+				Nodes = yaml.Nodes.Select(n => new MiniYamlNode(n)).ToImmutableArray();
+			}
 		}
 
 		public MiniYaml(string value)
