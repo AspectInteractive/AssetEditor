@@ -1,21 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using OpenRA.Graphics;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
 	public class AssetEditorTraitWindowLogic : ChromeLogic
 	{
-		readonly Widget stringOptionTemplate;
+		readonly Widget container;
+		readonly Widget panel;
 		readonly HashSet<TextFieldWidget> textFields = new();
+		readonly string traitTextFieldId = "VALUE";
+		readonly WidgetBounds traitTextFieldBounds = new(10, 10, 150, 20);
+		int heightInc = 20;
 
 		[ObjectCreator.UseCtor]
 		public AssetEditorTraitWindowLogic(Widget widget, Action onExit, MiniYamlNode traitNode, ActorInfo actor,
 			ModData modData)
 		{
-			stringOptionTemplate = widget.Get("EDITOR_SCROLLPANEL").Get("OPTION_TEMPLATE").Get("STRING_OPTION_TEMPLATE");
+			container = widget;
+			panel = widget.Get("EDITOR_SCROLLPANEL");
+
+			CreateFieldWidget(SetEditorFieldsInner(traitNode, value =>
+						actor.EditTrait(modData.ObjectCreator, traitNode.Key, value, ActorInfo.RulesType.Unresolved)));
 
 			GenerateWidgetChildren(traitNode, actor, modData);
 
@@ -32,12 +38,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		public void GenerateWidgetChildren(MiniYamlNode traitNode, ActorInfo actor, ModData modData)
 		{
-			Widget w;
-
 			foreach (var fieldNode in traitNode.Value.Nodes)
 			{
-				w = CreateFieldWidget(stringOptionTemplate,
-							SetEditorFieldsInner(fieldNode, value =>
+				CreateFieldWidget(SetEditorFieldsInner(fieldNode, value =>
 								actor.EditTrait(modData.ObjectCreator, fieldNode.Key, value, ActorInfo.RulesType.Unresolved)));
 
 				if (fieldNode.Value.Nodes.Length > 0)
@@ -45,12 +48,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 		}
 
-
-		static Widget CreateFieldWidget(Widget templateWidget, Widget w)
+		Widget CreateFieldWidget(Widget w)
 		{
-			var template = templateWidget.Clone();
-			var height = w.Bounds.Y + w.Bounds.Height;
-			template.Bounds = new WidgetBounds(template.Bounds.X, template.Bounds.Y, template.Bounds.Width, template.Bounds.Height + height);
+			var template = container;
 			template.AddChild(w);
 			return template;
 		}
@@ -59,14 +59,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			textField.Text = initialValue;
 			textField.OnEnterKey = _ => { action(textField.Text); textField.YieldKeyboardFocus(); return true; };
+			textField.Bounds = new WidgetBounds(panel.Bounds.X + 10, textField.Bounds.Y + 10 + heightInc, textField.Bounds.Width, textField.Bounds.Height);
+			heightInc += 20;
 			textFields.Add(textField);
 		}
 
 		Widget SetEditorFieldsInner(MiniYamlNode fieldNode, Action<string> action)
 		{
-			var template = stringOptionTemplate.Clone();
+			var template = new TextFieldWidget
+			{
+				Id = traitTextFieldId,
+				Bounds = traitTextFieldBounds
+			};
+
 			var traitNodeText = fieldNode.Key + (fieldNode.Value.Nodes.Length == 0 ? ": " + fieldNode.Value.Value : "");
-			Console.WriteLine($"traitNodeText of trait window: {traitNodeText}");
 			SetUpTextFieldNew(template.Get<TextFieldWidget>("VALUE"), traitNodeText, x => action(x));
 			return template;
 		}
