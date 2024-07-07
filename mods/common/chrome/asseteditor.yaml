@@ -342,18 +342,3 @@ Background@ASSETEDITOR_SUBPANEL:
 							Height: 1
 							Font: TinyBold
 							Align: Center
-						Container@STRING_OPTION_TEMPLATE:
-							X: 5
-							Y: 5
-							Width: PARENT_RIGHT
-							Height: 26
-							Children:
-								Label@LABEL:
-									X: 5
-									Width: 90
-									Height: 1
-									Align: Right
-								TextField@VALUE:
-									X: 5
-									Width: 190
-									Height: 20
