@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -191,8 +192,32 @@ namespace OpenRA
 			return LoadFilteredYaml(fileSystem, yamlNodes, filterNode).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), debugName, null, null);
 		}
 
+		public void LoadActorTraitsFromRulesActor(ModData modData, string actorKey)
+		{
+			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
+			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
+			var actorUnresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode)[actorKey.ToLowerInvariant()];
+
+			var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey, StringComparison.InvariantCultureIgnoreCase)).Value;
+
+			Console.WriteLine($"Hot Reloading Found Actor: {actor.Name}");
+
+			if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
+				return;
+
+			// Partial templates are not allowed.
+			if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
+				return;
+
+			var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules);
+
+			actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+			CallRulesetLoadedOnActors(actorKey);
+		}
+
 		public void LoadActorTraitsFromRuleFile(ModData modData, string ruleFile)
 		{
+			Console.WriteLine($"Hot Reloading Rule File: {ruleFile}");
 			LoadActorTraitsFromRuleFile(modData, new string[] { ruleFile });
 		}
 
@@ -200,16 +225,17 @@ namespace OpenRA
 		{
 			if (ruleFiles == null || ruleFiles.Length == 0)
 			{
-				Console.WriteLine("No matching actor file found, reloading all actor files.");
+				Console.WriteLine("No matching rule file found, reloading all rule files.");
 				ruleFiles = modData.Manifest.Rules;
 			}
 
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, ruleFiles, null);
 
 			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
-			var actorUnresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
+			var unresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
 
-			foreach (var actorKey in actorUnresolvedRules)
+			var actorInfos = new List<ActorInfo>();
+			foreach (var actorKey in unresolvedRules)
 			{
 				var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey.Key, StringComparison.InvariantCultureIgnoreCase)).Value;
 
@@ -220,11 +246,13 @@ namespace OpenRA
 				if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
 					continue;
 
-				var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
+				var newActorUnresolvedRules = new MiniYamlNodeBuilder(unresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
 
 				actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
-				CallRulesetLoadedOnAllActors();
+				actorInfos.Add(actor);
 			}
+
+			CallRulesetLoadedOnActorList(actorInfos);
 		}
 
 		public static Ruleset LoadDefaults(ModData modData)
@@ -280,9 +308,21 @@ namespace OpenRA
 			return ruleset;
 		}
 
-		public void CallRulesetLoadedOnAllActors()
+		public void CallRulesetLoadedOnActors(string actorKey = null)
 		{
-			foreach (var a in Actors.Values)
+			List<ActorInfo> actorInfos;
+
+			if (actorKey != null)
+				actorInfos = Actors.Values.Where(s => string.Equals(s.Name, actorKey, StringComparison.InvariantCultureIgnoreCase)).ToList();
+			else
+				actorInfos = Actors.Values.ToList();
+
+			CallRulesetLoadedOnActorList(actorInfos);
+		}
+
+		public void CallRulesetLoadedOnActorList(List<ActorInfo> actorInfos)
+		{
+			foreach (var a in actorInfos)
 			{
 				a.RulesetLoaded(this, a);
 				foreach (var t in a.TraitInfos<IRulesetLoaded>())
