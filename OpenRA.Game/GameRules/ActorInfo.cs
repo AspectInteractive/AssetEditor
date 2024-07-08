@@ -55,7 +55,6 @@ namespace OpenRA
 		{
 			Name = name;
 			LoadTraits(creator, node);
-			//LoadTraits(creator, node.Value);
 		}
 
 		public ActorInfo(ObjectCreator creator, string name, MiniYamlNode node, Ruleset rules)
