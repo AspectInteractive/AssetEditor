@@ -18,6 +18,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime;
 using System.Threading;
+using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Network;
 using OpenRA.Primitives;
@@ -44,6 +45,8 @@ namespace OpenRA
 
 		static WorldRenderer worldRenderer;
 		static string modLaunchWrapper;
+
+		public static RulesetWatcher RulesetWatcher;
 
 		internal static OrderManager OrderManager;
 		static Server.Server server;
@@ -198,6 +201,9 @@ namespace OpenRA
 
 			// Proactively collect memory during loading to reduce peak memory.
 			GC.Collect();
+
+			RulesetWatcher?.Dispose();
+			RulesetWatcher = new RulesetWatcher(OrderManager.World, ModData);
 
 			using (new PerfTimer("LoadComplete"))
 				OrderManager.World.LoadComplete(worldRenderer);
