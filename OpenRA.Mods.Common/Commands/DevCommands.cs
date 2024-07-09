@@ -167,8 +167,11 @@ namespace OpenRA.Mods.Common.Commands
 
 			if (!string.IsNullOrEmpty(arg))
 			{
-				if (arg[Math.Max(0, arg.Length - 5)..] == ".yaml" && matchingFile != null)
-					defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingFile);
+				if (arg[Math.Max(0, arg.Length - 5)..] == ".yaml")
+					if (matchingFile != null)
+						defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingFile);
+					else
+						Console.WriteLine($"Cannot find rule file specified - check spelling: {arg}. Reload aborted");
 				else
 					defaultRules.LoadActorTraitsFromRulesActor(world, Game.ModData, arg);
 			}
