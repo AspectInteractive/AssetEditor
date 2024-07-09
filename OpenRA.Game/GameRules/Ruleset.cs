@@ -234,7 +234,7 @@ namespace OpenRA
 		{
 			if (ruleFiles == null || ruleFiles.Length == 0)
 			{
-				Console.WriteLine("No matching rule file found, reloading all rule files.");
+				Console.WriteLine("No rule file specified, reloading all rule files.");
 				ruleFiles = modData.Manifest.Rules;
 			}
 
@@ -247,6 +247,8 @@ namespace OpenRA
 			foreach (var actorKey in unresolvedRules)
 			{
 				var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey.Key, StringComparison.InvariantCultureIgnoreCase)).Value;
+
+				Console.WriteLine($"Hot Reloading Found Actor: {actor.Name}");
 
 				if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
 					continue;
@@ -262,8 +264,8 @@ namespace OpenRA
 			}
 
 			CallRulesetLoadedOnActorList(actorInfos);
-			world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
-				.ToList().ForEach(a => a.LoadCachedTraits());
+			//world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
+			//	.ToList().ForEach(a => a.LoadCachedTraits());
 		}
 
 		public static Ruleset LoadDefaults(ModData modData)
