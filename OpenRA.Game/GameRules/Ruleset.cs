@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -192,7 +193,7 @@ namespace OpenRA
 			return LoadFilteredYaml(fileSystem, yamlNodes, filterNode).ToDictionaryWithConflictLog(k => k.Key.ToLowerInvariant(), debugName, null, null);
 		}
 
-		public void LoadActorTraitsFromRulesActor(ModData modData, string actorKey)
+		public void LoadActorTraitsFromRulesActor(World world, ModData modData, string actorKey)
 		{
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
 			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
@@ -211,17 +212,25 @@ namespace OpenRA
 
 			var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules);
 
-			actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
-			CallRulesetLoadedOnActors(actorKey);
+			var matchingWorldActors = world.Actors.Where(a => a.Info.Name.ToLowerInvariant() == actorKey).ToList();
+			matchingWorldActors.ForEach(a =>
+				{
+					//a.Info.ClearTraits();
+					//a.DisposeTraits();
+					actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+					CallRulesetLoadedOnActors(actorKey);
+					//a.LoadCachedTraits();
+				});
+			//matchingWorldActors.ForEach(a => a.LoadCachedTraits());
 		}
 
-		public void LoadActorTraitsFromRuleFile(ModData modData, string ruleFile)
+		public void LoadActorTraitsFromRuleFile(World world, ModData modData, string ruleFile)
 		{
 			Console.WriteLine($"Hot Reloading Rule File: {ruleFile}");
-			LoadActorTraitsFromRuleFile(modData, new string[] { ruleFile });
+			LoadActorTraitsFromRuleFile(world, modData, new string[] { ruleFile });
 		}
 
-		public void LoadActorTraitsFromRuleFile(ModData modData, string[] ruleFiles = null)
+		public void LoadActorTraitsFromRuleFile(World world, ModData modData, string[] ruleFiles = null)
 		{
 			if (ruleFiles == null || ruleFiles.Length == 0)
 			{
@@ -253,6 +262,8 @@ namespace OpenRA
 			}
 
 			CallRulesetLoadedOnActorList(actorInfos);
+			world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
+				.ToList().ForEach(a => a.LoadCachedTraits());
 		}
 
 		public static Ruleset LoadDefaults(ModData modData)

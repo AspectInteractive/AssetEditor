@@ -163,17 +163,17 @@ namespace OpenRA.Mods.Common.Commands
 		static void ReloadActors(string arg, World world)
 		{
 			var matchingFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
-			var defaultRules = Game.ModData.DefaultRules;
+			var defaultRules = world.Map.Rules;
 
 			if (!string.IsNullOrEmpty(arg))
 			{
 				if (arg[Math.Max(0, arg.Length - 5)..] == ".yaml" && matchingFile != null)
-					defaultRules.LoadActorTraitsFromRuleFile(Game.ModData, matchingFile);
+					defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingFile);
 				else
-					defaultRules.LoadActorTraitsFromRulesActor(Game.ModData, arg);
+					defaultRules.LoadActorTraitsFromRulesActor(world, Game.ModData, arg);
 			}
 			else
-				defaultRules.LoadActorTraitsFromRuleFile(Game.ModData);
+				defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData);
 		}
 
 		static void Visibility(string arg, World world)
