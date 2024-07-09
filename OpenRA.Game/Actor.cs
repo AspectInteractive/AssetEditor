@@ -68,11 +68,11 @@ namespace OpenRA
 		public int Generation;
 		public Actor ReplacedByActor;
 
-		public IEffectiveOwner EffectiveOwner { get; }
-		public IOccupySpace OccupiesSpace { get; }
-		public ITargetable[] Targetables { get; }
-		public IEnumerable<ITargetablePositions> EnabledTargetablePositions { get; }
-		readonly ICrushable[] crushables;
+		public IEffectiveOwner EffectiveOwner { get; private set; }
+		public IOccupySpace OccupiesSpace { get; private set; }
+		public ITargetable[] Targetables { get; private set; }
+		public IEnumerable<ITargetablePositions> EnabledTargetablePositions { get; private set; }
+		ICrushable[] crushables;
 		public ICrushable[] Crushables
 		{
 			get => crushables ?? throw new InvalidOperationException($"Crushables for {Info.Name} are not initialized.");
@@ -108,19 +108,21 @@ namespace OpenRA
 		/// <summary>Read-only version of conditionCache that is passed to IConditionConsumers.</summary>
 		readonly IReadOnlyDictionary<string, int> readOnlyConditionCache;
 
-		internal SyncHash[] SyncHashes { get; }
+		internal SyncHash[] SyncHashes { get; private set; }
 
-		readonly IFacing facing;
-		readonly IHealth health;
-		readonly IResolveOrder[] resolveOrders;
-		readonly IRenderModifier[] renderModifiers;
-		readonly IRender[] renders;
-		readonly IMouseBounds[] mouseBounds;
-		readonly IVisibilityModifier[] visibilityModifiers;
-		readonly IDefaultVisibility defaultVisibility;
-		readonly INotifyBecomingIdle[] becomingIdles;
-		readonly INotifyIdle[] tickIdles;
-		readonly IEnumerable<WPos> enabledTargetableWorldPositions;
+		readonly ActorInitializer init;
+
+		IFacing facing;
+		IHealth health;
+		IResolveOrder[] resolveOrders;
+		IRenderModifier[] renderModifiers;
+		IRender[] renders;
+		IMouseBounds[] mouseBounds;
+		IVisibilityModifier[] visibilityModifiers;
+		IDefaultVisibility defaultVisibility;
+		INotifyBecomingIdle[] becomingIdles;
+		INotifyIdle[] tickIdles;
+		IEnumerable<WPos> enabledTargetableWorldPositions;
 		bool created;
 
 		internal Actor(World world, string name, TypeDictionary initDict)
@@ -131,7 +133,7 @@ namespace OpenRA
 			if (duplicateInit != null)
 				throw new InvalidDataException($"Duplicate initializer '{duplicateInit.Key.Name}'");
 
-			var init = new ActorInitializer(this, initDict);
+			init = new ActorInitializer(this, initDict);
 
 			readOnlyConditionCache = new ReadOnlyDictionary<string, int>(conditionCache);
 
@@ -145,65 +147,70 @@ namespace OpenRA
 			{
 				name = name.ToLowerInvariant();
 
-				if (!world.Map.Rules.Actors.ContainsKey(name))
+				if (!World.Map.Rules.Actors.ContainsKey(name))
 					throw new NotImplementedException("No rules definition for unit " + name);
 
-				Info = world.Map.Rules.Actors[name];
+				Info = World.Map.Rules.Actors[name];
 
-				var resolveOrdersList = new List<IResolveOrder>();
-				var renderModifiersList = new List<IRenderModifier>();
-				var rendersList = new List<IRender>();
-				var mouseBoundsList = new List<IMouseBounds>();
-				var visibilityModifiersList = new List<IVisibilityModifier>();
-				var becomingIdlesList = new List<INotifyBecomingIdle>();
-				var tickIdlesList = new List<INotifyIdle>();
-				var targetablesList = new List<ITargetable>();
-				var targetablePositionsList = new List<ITargetablePositions>();
-				var syncHashesList = new List<SyncHash>();
-				var crushablesList = new List<ICrushable>();
-
-				foreach (var traitInfo in Info.TraitsInConstructOrder())
-				{
-					var trait = traitInfo.Create(init);
-					AddTrait(trait);
-
-					// PERF: Cache all these traits as soon as the actor is created. This is a fairly cheap one-off cost per
-					// actor that allows us to provide some fast implementations of commonly used methods that are relied on by
-					// performance-sensitive parts of the core game engine, such as pathfinding, visibility and rendering.
-					// Note: The blocks are required to limit the scope of the t's, so we make an exception to our normal style
-					// rules for spacing in order to keep these assignments compact and readable.
-					{ if (trait is IOccupySpace t) OccupiesSpace = t; }
-					{ if (trait is IEffectiveOwner t) EffectiveOwner = t; }
-					{ if (trait is IFacing t) facing = t; }
-					{ if (trait is IHealth t) health = t; }
-					{ if (trait is IResolveOrder t) resolveOrdersList.Add(t); }
-					{ if (trait is IRenderModifier t) renderModifiersList.Add(t); }
-					{ if (trait is IRender t) rendersList.Add(t); }
-					{ if (trait is IMouseBounds t) mouseBoundsList.Add(t); }
-					{ if (trait is IVisibilityModifier t) visibilityModifiersList.Add(t); }
-					{ if (trait is IDefaultVisibility t) defaultVisibility = t; }
-					{ if (trait is INotifyBecomingIdle t) becomingIdlesList.Add(t); }
-					{ if (trait is INotifyIdle t) tickIdlesList.Add(t); }
-					{ if (trait is ITargetable t) targetablesList.Add(t); }
-					{ if (trait is ITargetablePositions t) targetablePositionsList.Add(t); }
-					{ if (trait is ISync t) syncHashesList.Add(new SyncHash(t)); }
-					{ if (trait is ICrushable t) crushablesList.Add(t); }
-				}
-
-				resolveOrders = resolveOrdersList.ToArray();
-				renderModifiers = renderModifiersList.ToArray();
-				renders = rendersList.ToArray();
-				mouseBounds = mouseBoundsList.ToArray();
-				visibilityModifiers = visibilityModifiersList.ToArray();
-				becomingIdles = becomingIdlesList.ToArray();
-				tickIdles = tickIdlesList.ToArray();
-				Targetables = targetablesList.ToArray();
-				var targetablePositions = targetablePositionsList.ToArray();
-				EnabledTargetablePositions = targetablePositions.Where(Exts.IsTraitEnabled);
-				enabledTargetableWorldPositions = EnabledTargetablePositions.SelectMany(tp => tp.TargetablePositions(this));
-				SyncHashes = syncHashesList.ToArray();
-				crushables = crushablesList.ToArray();
+				LoadCachedTraits();
 			}
+		}
+
+		internal void LoadCachedTraits()
+		{
+			var resolveOrdersList = new List<IResolveOrder>();
+			var renderModifiersList = new List<IRenderModifier>();
+			var rendersList = new List<IRender>();
+			var mouseBoundsList = new List<IMouseBounds>();
+			var visibilityModifiersList = new List<IVisibilityModifier>();
+			var becomingIdlesList = new List<INotifyBecomingIdle>();
+			var tickIdlesList = new List<INotifyIdle>();
+			var targetablesList = new List<ITargetable>();
+			var targetablePositionsList = new List<ITargetablePositions>();
+			var syncHashesList = new List<SyncHash>();
+			var crushablesList = new List<ICrushable>();
+
+			foreach (var traitInfo in Info.TraitsInConstructOrder())
+			{
+				var trait = traitInfo.Create(init);
+				AddTrait(trait);
+
+				// PERF: Cache all these traits as soon as the actor is created. This is a fairly cheap one-off cost per
+				// actor that allows us to provide some fast implementations of commonly used methods that are relied on by
+				// performance-sensitive parts of the core game engine, such as pathfinding, visibility and rendering.
+				// Note: The blocks are required to limit the scope of the t's, so we make an exception to our normal style
+				// rules for spacing in order to keep these assignments compact and readable.
+				{ if (trait is IOccupySpace t) OccupiesSpace = t; }
+				{ if (trait is IEffectiveOwner t) EffectiveOwner = t; }
+				{ if (trait is IFacing t) facing = t; }
+				{ if (trait is IHealth t) health = t; }
+				{ if (trait is IResolveOrder t) resolveOrdersList.Add(t); }
+				{ if (trait is IRenderModifier t) renderModifiersList.Add(t); }
+				{ if (trait is IRender t) rendersList.Add(t); }
+				{ if (trait is IMouseBounds t) mouseBoundsList.Add(t); }
+				{ if (trait is IVisibilityModifier t) visibilityModifiersList.Add(t); }
+				{ if (trait is IDefaultVisibility t) defaultVisibility = t; }
+				{ if (trait is INotifyBecomingIdle t) becomingIdlesList.Add(t); }
+				{ if (trait is INotifyIdle t) tickIdlesList.Add(t); }
+				{ if (trait is ITargetable t) targetablesList.Add(t); }
+				{ if (trait is ITargetablePositions t) targetablePositionsList.Add(t); }
+				{ if (trait is ISync t) syncHashesList.Add(new SyncHash(t)); }
+				{ if (trait is ICrushable t) crushablesList.Add(t); }
+			}
+
+			resolveOrders = resolveOrdersList.ToArray();
+			renderModifiers = renderModifiersList.ToArray();
+			renders = rendersList.ToArray();
+			mouseBounds = mouseBoundsList.ToArray();
+			visibilityModifiers = visibilityModifiersList.ToArray();
+			becomingIdles = becomingIdlesList.ToArray();
+			tickIdles = tickIdlesList.ToArray();
+			Targetables = targetablesList.ToArray();
+			var targetablePositions = targetablePositionsList.ToArray();
+			EnabledTargetablePositions = targetablePositions.Where(Exts.IsTraitEnabled);
+			enabledTargetableWorldPositions = EnabledTargetablePositions.SelectMany(tp => tp.TargetablePositions(this));
+			SyncHashes = syncHashesList.ToArray();
+			crushables = crushablesList.ToArray();
 		}
 
 		internal void Initialize(bool addToWorld = true)
@@ -403,6 +410,14 @@ namespace OpenRA
 		public void AddTrait(object trait)
 		{
 			World.TraitDict.AddTrait(this, trait);
+		}
+
+		public void DisposeTraits()
+		{
+			foreach (var t in TraitsImplementing<INotifyActorDisposing>())
+				t.Disposing(this);
+
+			World.TraitDict.RemoveActor(this);
 		}
 
 		public void Dispose()
