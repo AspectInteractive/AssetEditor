@@ -72,8 +72,8 @@ namespace OpenRA
 
 		public void LoadTraits(ObjectCreator creator, MiniYamlNode node, bool clearAllFirst = false)
 		{
-			Console.WriteLine($"~~~ Loading Traits for Actor: {Name}, node: {node.Key} ~~~");
-			Console.WriteLine($"~ NEW YAML NODE ~\n{MiniYaml.GetNodeOutputString(node)}");
+			//Console.WriteLine($"~~~ Loading Traits for Actor: {Name}, node: {node.Key} ~~~");
+			//Console.WriteLine($"~ NEW YAML NODE ~\n{MiniYaml.GetNodeOutputString(node)}");
 			MiniYaml yaml;
 			if (Rules != null && Rules.ResolvedRulesYaml != null)
 				yaml = Ruleset.ResolveIndividualNode(node, Rules.ResolvedRulesYaml);
@@ -94,7 +94,7 @@ namespace OpenRA
 						var trait = LoadTraitInfo(creator, t.Key, t.Value);
 						if (trait != null)
 							traits.Add(trait);
-						Console.WriteLine($"Trait {trait} loaded.");
+						//Console.WriteLine($"Trait {trait} loaded.");
 					}
 					catch (FieldLoader.MissingFieldsException e)
 					{
