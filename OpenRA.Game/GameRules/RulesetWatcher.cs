@@ -151,6 +151,8 @@ namespace OpenRA.GameRules
 			if (sequenceFiles.Length > 0)
 				TryExecute(() => world.Map.Sequences.ReloadSequenceSetFromFiles(modData.DefaultFileSystem, sequenceFiles));
 
+			if (Game.Settings.Debug.RecreateActorsAfterRulesetReload)
+				world.RecreateActors();
 
 			static IEnumerable<string> FindModFiles(IEnumerable<string> allFiles, ISet<string> findFiles)
 				=> allFiles.Where(findFiles.Contains);
