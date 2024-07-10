@@ -204,10 +204,13 @@ namespace OpenRA
 		{
 			if (ruleFiles == null || ruleFiles.Length == 0)
 			{
-				Console.WriteLine("No rule file specified, reloading all rule files.");
+				TextNotificationsManager.Debug("No rule file specified, reloading all rule files.");
 				ruleFiles = modData.Manifest.Rules;
 			}
+			else
+				TextNotificationsManager.Debug($"Reloading rule files: {string.Join(", ", ruleFiles)}");
 
+			// TODO: exception handling: file access error, syntax error, etc.
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, ruleFiles, null);
 			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
 			var unresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
@@ -232,7 +235,6 @@ namespace OpenRA
 			}
 
 			CallRulesetLoadedOnActorsList(actorInfos);
-			world.RecreateActors();
 			//world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
 			//	.ToList().ForEach(a => a.LoadCachedTraits());
 		}
