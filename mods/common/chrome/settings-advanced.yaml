@@ -208,4 +208,13 @@ Container@ADVANCED_PANEL:
 									Height: 20
 									Font: Regular
 									Text: checkbox-ruleset-autoreload
+						Container@RULESET_AUTORELOAD_RECREATE_ACTORS_CONTAINER:
+							X: PARENT_RIGHT / 2 + 10
+							Width: PARENT_RIGHT / 2 - 20
+							Children:
+								Checkbox@RULESET_AUTORELOAD_RECREATE_ACTORS_CHECKBOX:
+									Width: PARENT_RIGHT
+									Height: 20
+									Font: Regular
+									Text: checkbox-ruleset-autoreload-recreate-actors
 

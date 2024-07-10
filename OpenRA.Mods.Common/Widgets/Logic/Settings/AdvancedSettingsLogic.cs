@@ -56,6 +56,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SettingsUtils.BindCheckboxPref(panel, "CHECKBOTSYNC_CHECKBOX", ds, "SyncCheckBotModuleCode");
 			SettingsUtils.BindCheckboxPref(panel, "PERFLOGGING_CHECKBOX", ds, "EnableSimulationPerfLogging");
 			SettingsUtils.BindCheckboxPref(panel, "RULESET_AUTORELOAD_CHECKBOX", ds, "EnableRulesetAutoReload");
+			SettingsUtils.BindCheckboxPref(panel, "RULESET_AUTORELOAD_RECREATE_ACTORS_CHECKBOX", ds, "RecreateActorsAfterRulesetReload");
 
 			panel.Get("BOTDEBUG_CHECKBOX_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
 			panel.Get("CHECKUNSYNCED_CHECKBOX_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
@@ -92,7 +93,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				ds.EnableDebugCommandsInReplays = dds.EnableDebugCommandsInReplays;
 				ds.EnableSimulationPerfLogging = dds.EnableSimulationPerfLogging;
 				ds.EnableRulesetAutoReload = dds.EnableRulesetAutoReload;
+				ds.RecreateActorsAfterRulesetReload = dds.RecreateActorsAfterRulesetReload;
 			};
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+
+			Game.RulesetWatcher?.ToggleWatching(Game.Settings.Debug.EnableRulesetAutoReload);
 		}
 	}
 }

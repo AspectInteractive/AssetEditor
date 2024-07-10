@@ -457,6 +457,7 @@ checkbox-checkunsynced-container = Check Sync around Unsynced Code
 checkbox-replay-commands-container = Enable Debug Commands in Replays
 checkbox-perflogging-container = Enable Tick Performance Logging
 checkbox-ruleset-autoreload = Enable Ruleset Auto Reload
+checkbox-ruleset-autoreload-recreate-actors = Recreate Actors After Ruleset Is Reloaded
 
 ## settings-audio.yaml
 label-audio-section-header = Audio
