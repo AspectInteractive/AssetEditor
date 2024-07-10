@@ -168,6 +168,7 @@ World:
 	DebugVisualizationCommands:
 	PathFinderOverlay:
 	HierarchicalPathFinderOverlay:
+	RuntimeRulesetReload:
 	PlayerCommands:
 	HelpCommand:
 	ScreenShaker:

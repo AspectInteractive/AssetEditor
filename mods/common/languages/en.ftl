@@ -781,6 +781,13 @@ description-path-debug-overlay = toggles a visualization of path searching.
 ## TerrainGeometryOverlay
 description-terrain-geometry-overlay = toggles the terrain geometry overlay.
 
+## RuntimeRulesetReload
+description-ruleset-autoreload = enables/disables automatic reload of ruleset when changed externally.
+notification-ruleset-autoreload-multiplayer-disabled = Automatic reload of ruleset cannot be enabled in multiplayer.
+notification-ruleset-autoreload-enabled = Automatic reload of ruleset enabled.
+notification-ruleset-autoreload-disabled = Automatic reload of ruleset disabled.
+notification-ruleset-autoreload-invalid-argument = Invalid argument value. Valid values: <no argument>, true, false
+
 ## MapOptions, MissionBrowserLogic
 options-game-speed =
     .slowest = Slowest
