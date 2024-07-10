@@ -195,4 +195,17 @@ Container@ADVANCED_PANEL:
 									Height: 20
 									Font: Regular
 									Text: checkbox-perflogging-container
+				Container@ROW:
+					Width: PARENT_RIGHT - 24
+					Height: 20
+					Children:
+						Container@RULESET_AUTORELOAD_CONTAINER:
+							X: 10
+							Width: PARENT_RIGHT / 2 - 20
+							Children:
+								Checkbox@RULESET_AUTORELOAD_CHECKBOX:
+									Width: PARENT_RIGHT
+									Height: 20
+									Font: Regular
+									Text: checkbox-ruleset-autoreload
 

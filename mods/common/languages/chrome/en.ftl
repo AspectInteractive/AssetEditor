@@ -456,6 +456,7 @@ checkbox-luadebug-container = Show Map Debug Messages
 checkbox-checkunsynced-container = Check Sync around Unsynced Code
 checkbox-replay-commands-container = Enable Debug Commands in Replays
 checkbox-perflogging-container = Enable Tick Performance Logging
+checkbox-ruleset-autoreload = Enable Ruleset Auto Reload
 
 ## settings-audio.yaml
 label-audio-section-header = Audio

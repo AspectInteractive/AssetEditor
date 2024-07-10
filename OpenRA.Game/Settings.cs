@@ -177,6 +177,9 @@ namespace OpenRA
 
 		[Desc("Throw an exception if the world sync hash changes while evaluating BotModules.")]
 		public bool SyncCheckBotModuleCode = false;
+
+		[Desc("Enable automatic ruleset when changed externally.")]
+		public bool EnableRulesetAutoReload = false;
 	}
 
 	public class GraphicSettings
