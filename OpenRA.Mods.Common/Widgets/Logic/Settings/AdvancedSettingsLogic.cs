@@ -55,6 +55,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SettingsUtils.BindCheckboxPref(panel, "CHECKUNSYNCED_CHECKBOX", ds, "SyncCheckUnsyncedCode");
 			SettingsUtils.BindCheckboxPref(panel, "CHECKBOTSYNC_CHECKBOX", ds, "SyncCheckBotModuleCode");
 			SettingsUtils.BindCheckboxPref(panel, "PERFLOGGING_CHECKBOX", ds, "EnableSimulationPerfLogging");
+			SettingsUtils.BindCheckboxPref(panel, "RULESET_AUTORELOAD_CHECKBOX", ds, "EnableRulesetAutoReload");
 
 			panel.Get("BOTDEBUG_CHECKBOX_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
 			panel.Get("CHECKUNSYNCED_CHECKBOX_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
@@ -63,6 +64,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			panel.Get("REPLAY_COMMANDS_CHECKBOX_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
 			panel.Get("PERFLOGGING_CHECKBOX_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
 			panel.Get("DEBUG_HIDDEN_CONTAINER").IsVisible = () => !ds.DisplayDeveloperSettings;
+			panel.Get("RULESET_AUTORELOAD_CONTAINER").IsVisible = () => ds.DisplayDeveloperSettings;
 
 			SettingsUtils.AdjustSettingsScrollPanelLayout(scrollPanel);
 
@@ -89,6 +91,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				ds.CheckVersion = dds.CheckVersion;
 				ds.EnableDebugCommandsInReplays = dds.EnableDebugCommandsInReplays;
 				ds.EnableSimulationPerfLogging = dds.EnableSimulationPerfLogging;
+				ds.EnableRulesetAutoReload = dds.EnableRulesetAutoReload;
 			};
 		}
 	}
