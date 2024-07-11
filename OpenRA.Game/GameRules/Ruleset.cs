@@ -35,6 +35,8 @@ namespace OpenRA
 		public readonly IReadOnlyDictionary<string, MiniYamlNode> ModelSequences;
 		public Dictionary<string, MiniYamlNode> UnresolvedRulesYamlDict;
 		public List<MiniYamlNode> ResolvedRulesYaml;
+		public Dictionary<string, MiniYamlNode> UnresolvedWeaponsYamlDict;
+		public List<MiniYamlNode> ResolvedWeaponsYaml;
 
 		public Ruleset(
 			IReadOnlyDictionary<string, ActorInfo> actors,
@@ -45,7 +47,9 @@ namespace OpenRA
 			ITerrainInfo terrainInfo,
 			IReadOnlyDictionary<string, MiniYamlNode> modelSequences,
 			Dictionary<string, MiniYamlNode> unresolvedRulesYamlDict,
-			List<MiniYamlNode> resolvedRulesYaml)
+			List<MiniYamlNode> resolvedRulesYaml,
+			Dictionary<string, MiniYamlNode> unresolvedWeaponsYamlDict,
+			List<MiniYamlNode> resolvedWeaponsYaml)
 		{
 			Actors = new ActorInfoDictionary(actors);
 			Weapons = weapons;
@@ -56,52 +60,11 @@ namespace OpenRA
 			ModelSequences = modelSequences;
 			UnresolvedRulesYamlDict = unresolvedRulesYamlDict;
 			ResolvedRulesYaml = resolvedRulesYaml;
+			UnresolvedWeaponsYamlDict = unresolvedWeaponsYamlDict;
+			ResolvedWeaponsYaml = resolvedWeaponsYaml;
 
-			foreach (var a in Actors.Values)
-			{
-				a.RulesetLoaded(this, a);
-				foreach (var t in a.TraitInfos<IRulesetLoaded>())
-				{
-					try
-					{
-						t.RulesetLoaded(this, a);
-					}
-					catch (YamlException e)
-					{
-						throw new YamlException($"Actor type {a.Name}: {e.Message}");
-					}
-				}
-			}
-
-			foreach (var weapon in Weapons)
-			{
-				if (weapon.Value.Projectile is IRulesetLoaded<WeaponInfo> projectileLoaded)
-				{
-					try
-					{
-						projectileLoaded.RulesetLoaded(this, weapon.Value);
-					}
-					catch (YamlException e)
-					{
-						throw new YamlException($"Projectile type {weapon.Key}: {e.Message}");
-					}
-				}
-
-				foreach (var warhead in weapon.Value.Warheads)
-				{
-					if (warhead is IRulesetLoaded<WeaponInfo> cacher)
-					{
-						try
-						{
-							cacher.RulesetLoaded(this, weapon.Value);
-						}
-						catch (YamlException e)
-						{
-							throw new YamlException($"Weapon type {weapon.Key}: {e.Message}");
-						}
-					}
-				}
-			}
+			CallRulesetLoadedOnActorsList(Actors.Values.ToList());
+			CallRulesetLoadedOnWeaponsList(Weapons.Values.ToList());
 		}
 
 		public Ruleset(
@@ -112,7 +75,7 @@ namespace OpenRA
 			IReadOnlyDictionary<string, MusicInfo> music,
 			ITerrainInfo terrainInfo,
 			IReadOnlyDictionary<string, MiniYamlNode> modelSequences)
-		: this(actors, weapons, voices, notifications, music, terrainInfo, modelSequences, null, null) { }
+		: this(actors, weapons, voices, notifications, music, terrainInfo, modelSequences, null, null, null, null) { }
 
 		public IEnumerable<KeyValuePair<string, MusicInfo>> InstalledMusic { get { return Music.Where(m => m.Value.Exists); } }
 
@@ -151,8 +114,13 @@ namespace OpenRA
 			}
 		}
 
-		public static MiniYaml ResolveIndividualNode(MiniYamlNode inputNode, List<MiniYamlNode> resolvedRulesYaml)
-		{ return MiniYaml.AtomicMerge(inputNode, new List<IReadOnlyCollection<MiniYamlNode>>() { resolvedRulesYaml }); }
+		public static MiniYaml ResolveIndividualNode(MiniYamlNode inputNode, List<MiniYamlNode> resolvedRulesYaml = null)
+		{
+			if (resolvedRulesYaml != null)
+				return MiniYaml.AtomicMerge(inputNode, new List<IReadOnlyCollection<MiniYamlNode>>() { resolvedRulesYaml });
+			else
+				return MiniYaml.AtomicMerge(inputNode);
+		}
 
 		public static void WriteResolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles,	string outputFolder, bool deleteFirst = false)
 		{
@@ -263,9 +231,63 @@ namespace OpenRA
 				actorInfos.Add(actor);
 			}
 
-			CallRulesetLoadedOnActorList(actorInfos);
+			CallRulesetLoadedOnActorsList(actorInfos);
 			//world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
 			//	.ToList().ForEach(a => a.LoadCachedTraits());
+		}
+
+		public void LoadWeapon(World world, ModData modData, string weaponKey)
+		{
+			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+			var unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
+
+			var weapon = Weapons.FirstOrDefault(s => string.Equals(s.Key, weaponKey, StringComparison.InvariantCultureIgnoreCase)).Value;
+
+			Console.WriteLine($"Hot Reloading Found Weapon: {weapon.Name}");
+
+			if (weapon == null)
+				return;
+
+			var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapons.FirstOrDefault(s => string.Equals(s.Key, weapon.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
+
+			weapon.LoadYaml(newWeaponUnresolvedRules);
+			CallRulesetLoadedOnWeapons(weaponKey);
+		}
+
+		public void LoadWeaponsFromFile(World world, ModData modData, string weaponFile)
+		{
+			Console.WriteLine($"Hot Reloading Rule File: {weaponFile}");
+			LoadWeaponsFromFile(world, modData, new string[] { weaponFile });
+		}
+
+		public void LoadWeaponsFromFile(World world, ModData modData, string[] weaponFiles = null)
+		{
+			if (weaponFiles == null || weaponFiles.Length == 0)
+			{
+				Console.WriteLine("No weapon file specified, reloading all weapon files.");
+				weaponFiles = modData.Manifest.Weapons;
+			}
+
+			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, weaponFiles, null);
+			var unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
+
+			var weaponInfos = new List<WeaponInfo>();
+			foreach (var weaponKey in unresolvedWeapons)
+			{
+				var weapon = Weapons.FirstOrDefault(s => string.Equals(s.Key, weaponKey.Key, StringComparison.InvariantCultureIgnoreCase)).Value;
+
+				Console.WriteLine($"Hot Reloading Found Weapon: {weapon.Name}");
+
+				if (weapon == null)
+					continue;
+
+				var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapons.FirstOrDefault(s => string.Equals(s.Key, weapon.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
+
+				weapon.LoadYaml(newWeaponUnresolvedRules);
+				weaponInfos.Add(weapon);
+			}
+
+			CallRulesetLoadedOnWeaponsList(weaponInfos);
 		}
 
 		public static Ruleset LoadDefaults(ModData modData)
@@ -276,16 +298,19 @@ namespace OpenRA
 			Ruleset ruleset = null;
 			void LoadRuleset()
 			{
-				bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
-				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(fs, MiniYaml.LoadWithoutInherits(fs, m.Rules, null), "UnresolvedRulesYaml", FilterNode);
+				bool ActorFilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
+				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(fs, MiniYaml.LoadWithoutInherits(fs, m.Rules, null), "UnresolvedRulesYaml", ActorFilterNode);
 				var resolvedRulesYaml = MiniYaml.Load(fs, m.Rules, null); // needs to not filter in order to include Inheritance nodes for AtomicMerge
 
 				var actors = MergeOrDefault("Manifest,Rules", fs, m.Rules, null, null,
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k),
 					filterNode: n => n.Key.StartsWith(ActorInfo.AbstractActorPrefix));
 
+				var unresolvedWeaponsYaml = LoadFilteredYamlToDictionary(fs, MiniYaml.LoadWithoutInherits(fs, m.Weapons, null), "UnresolvedRulesYaml");
+				var resolvedWeaponsYaml = MiniYaml.Load(fs, m.Weapons, null);
+
 				var weapons = MergeOrDefault("Manifest,Weapons", fs, m.Weapons, null, null,
-					k => new WeaponInfo(k.Value));
+					k => new WeaponInfo(k, k.Key));
 
 				var voices = MergeOrDefault("Manifest,Voices", fs, m.Voices, null, null,
 					k => new SoundInfo(k.Value));
@@ -301,7 +326,7 @@ namespace OpenRA
 
 				// The default ruleset does not include a preferred tileset
 				ruleset = new Ruleset(actors, weapons, voices, notifications, music, null, modelSequences,
-					unresolvedRulesYaml, resolvedRulesYaml);
+					unresolvedRulesYaml, resolvedRulesYaml, unresolvedWeaponsYaml, resolvedWeaponsYaml);
 			}
 
 			if (modData.IsOnMainThread)
@@ -321,6 +346,52 @@ namespace OpenRA
 			return ruleset;
 		}
 
+		public void CallRulesetLoadedOnWeapons(string weaponKey = null)
+		{
+			List<WeaponInfo> weaponInfos;
+
+			if (weaponKey != null)
+				weaponInfos = Weapons.Values.Where(s => string.Equals(s.Name, weaponKey, StringComparison.InvariantCultureIgnoreCase)).ToList();
+			else
+				weaponInfos = Weapons.Values.ToList();
+
+			CallRulesetLoadedOnWeaponsList(weaponInfos);
+		}
+
+		public void CallRulesetLoadedOnWeaponsList(List<WeaponInfo> weaponInfos)
+		{
+			foreach (var weapon in weaponInfos)
+			{
+				weapon.RulesetLoaded(this, weapon);
+				if (weapon.Projectile is IRulesetLoaded<WeaponInfo> projectileLoaded)
+				{
+					try
+					{
+						projectileLoaded.RulesetLoaded(this, weapon);
+					}
+					catch (YamlException e)
+					{
+						throw new YamlException($"Projectile type {weapon.Name}: {e.Message}");
+					}
+				}
+
+				foreach (var warhead in weapon.Warheads)
+				{
+					if (warhead is IRulesetLoaded<WeaponInfo> cacher)
+					{
+						try
+						{
+							cacher.RulesetLoaded(this, weapon);
+						}
+						catch (YamlException e)
+						{
+							throw new YamlException($"Weapon type {weapon.Name}: {e.Message}");
+						}
+					}
+				}
+			}
+		}
+
 		public void CallRulesetLoadedOnActors(string actorKey = null)
 		{
 			List<ActorInfo> actorInfos;
@@ -330,10 +401,10 @@ namespace OpenRA
 			else
 				actorInfos = Actors.Values.ToList();
 
-			CallRulesetLoadedOnActorList(actorInfos);
+			CallRulesetLoadedOnActorsList(actorInfos);
 		}
 
-		public void CallRulesetLoadedOnActorList(List<ActorInfo> actorInfos)
+		public void CallRulesetLoadedOnActorsList(List<ActorInfo> actorInfos)
 		{
 			foreach (var a in actorInfos)
 			{
@@ -378,8 +449,11 @@ namespace OpenRA
 					k => new ActorInfo(modData.ObjectCreator, k.Key.ToLowerInvariant(), k),
 					filterNode: n => n.Key.StartsWith(ActorInfo.AbstractActorPrefix));
 
+				var unresolvedWeaponsYaml = LoadFilteredYamlToDictionary(fileSystem, MiniYaml.LoadWithoutInherits(fileSystem, m.Weapons, null), "UnresolvedRulesYaml");
+				var resolvedWeaponsYaml = MiniYaml.Load(fileSystem, m.Weapons, null);
+
 				var weapons = MergeOrDefault("Weapons", fileSystem, m.Weapons, mapWeapons, dr.Weapons,
-					k => new WeaponInfo(k.Value));
+					k => new WeaponInfo(k, k.Key));
 
 				var voices = MergeOrDefault("Voices", fileSystem, m.Voices, mapVoices, dr.Voices,
 					k => new SoundInfo(k.Value));
@@ -399,7 +473,7 @@ namespace OpenRA
 						k => k);
 
 				ruleset = new Ruleset(actors, weapons, voices, notifications, music, terrainInfo, modelSequences,
-					unresolvedRulesYaml, resolvedRulesYaml);
+					unresolvedRulesYaml, resolvedRulesYaml, unresolvedWeaponsYaml, resolvedWeaponsYaml);
 			}
 
 			if (modData.IsOnMainThread)
