@@ -28,26 +28,30 @@ Due to complexities in the way traits and attributes are managed by the game, th
 
 NOTE: **Yes*** means it is reloadable, but changes will only appear on newly built units in the game, any existing units will remain unchanged.
 
-| Trait or Trait Attribute                  | Type            | Reloadable? | Description                                                                                       |
-| ----------------------------------------- | --------------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| Mobile: Speed: *speed*                    | Trait Attribute | Yes*        | Determines the base movement speed of the unit                                                    |
-| Mobile                                    | Trait           | No          | Provides all information about any movement that a unit can perform                               |
-| Health: HP: *amount*                      | Trait Attribute | Yes*        | Determines the health of the unit                                                                 |
-| Valued: Cost: *cost*                      | Trait Attribute | Yes*        | Determines the cost to produce the unit at a production facility                                  |
-| RevealsShroud: Range: *range*             | Trait Attribute | Yes*        | Determines the sight range that a unit is able to reveal shroud to                                |
-| Transforms: IntoActor: *building*         | Trait Attribute | Yes*        | Determines the building a unit can transform into (refer to MCV unit)                             |
-| Armament: Weapon: *weapon*                | Trait Attribute | Yes*        | Determines the weapon that a unit uses                                                            |
-| Armament: LocalOffset: *x,y,z*            | Trait Attribute | Yes*        | Determines the offseted position of the firing sprite on the unit relative to the unit's position |
-| Armament                                  | Trait           | No          | Determines all of the attack properties of a weapon on the unit                                   |
-| Selectable: DecorationBounds: *bounds*    | Trait Attribute | Yes*        | Determines the size of a selection box on a unit                                                  |
-| Selectable: Bounds: *bounds*              | Trait Attribute | Yes*        | Determines the size of a selection box on a building                                              |
-| Buildable: Queue: *queue*                 | Trait Attribute | No          | Determines which production facility a unit can be built from                                     |
-| Tooltip: Name: *name*                     | Trait Attribute | Yes*        | Determines which translation string is  used for a unit's tooltip                                 |
-| Power: Amount: *amount*                   | Trait Attribute | Yes*        | Determines the amount of power a building provides                                                |
-| Power                                     | Trait           | Yes*        | Determines whether a building provides power or not                                               |
-| Building: Footprint: *footprint*          | Trait Attribute | Yes*        | Determines the size of the building's footprint                                                   |
-| Building: Dimensions: *dimensions*        | Trait Attribute | Yes*        | Determines the size of the building's dimensions                                                  |
-| Buildable: Prerequisites: *prerequisites* | Trait Attribute | No          | Determines what prerequisites a building needs to be built                                        |
+| Trait or Trait Attribute                  | Type             | Reloadable? | Description                                                                                       |
+| ----------------------------------------- | ---------------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| Mobile: Speed: *speed*                    | Trait Attribute  | Yes*        | Determines the base movement speed of the unit                                                    |
+| Mobile                                    | Trait            | Yes*        | Provides all information about any movement that a unit can perform                               |
+| Aircraft                                  | Trait            | Yes*        | Provides all information about an aircraft's movement characteristics                             |
+| Health: HP: *amount*                      | Trait Attribute  | Yes*        | Determines the health of the unit                                                                 |
+| Valued: Cost: *cost*                      | Trait Attribute  | Yes*        | Determines the cost to produce the unit at a production facility                                  |
+| RevealsShroud: Range: *range*             | Trait Attribute  | Yes*        | Determines the sight range that a unit is able to reveal shroud to                                |
+| Transforms: IntoActor: *building*         | Trait Attribute  | Yes*        | Determines the building a unit can transform into (refer to MCV unit)                             |
+| Armament: Weapon: *weapon*                | Trait Attribute  | Yes*        | Determines the weapon that a unit uses                                                            |
+| Armament: LocalOffset: *x,y,z*            | Trait Attribute  | Yes*        | Determines the offseted position of the firing sprite on the unit relative to the unit's position |
+| Armament                                  | Trait            | Yes*        | Determines all of the attack properties of a weapon on the unit                                   |
+| Turreted:                                 | Trait            | Yes*        | Defines a unit's turret properties                                                                |
+| AttackTurreted:                           | Trait            | Yes*        | Declares that a unit's weapon is turreted                                                         |
+| Selectable: DecorationBounds: *bounds*    | Trait Attribute  | Yes*        | Determines the size of a selection box on a unit                                                  |
+| Selectable: Bounds: *bounds*              | Trait Attribute  | Yes*        | Determines the size of a selection box on a building                                              |
+| Buildable: Queue: *queue*                 | Trait Attribute  | No          | Determines which production facility a unit can be built from                                     |
+| Tooltip: Name: *name*                     | Trait Attribute  | Yes*        | Determines which translation string is  used for a unit's tooltip                                 |
+| Power: Amount: *amount*                   | Trait Attribute  | Yes*        | Determines the amount of power a building provides                                                |
+| Power                                     | Trait            | Yes*        | Determines whether a building provides power or not                                               |
+| Building: Footprint: *footprint*          | Trait Attribute  | Yes*        | Determines the size of the building's footprint                                                   |
+| Building: Dimensions: *dimensions*        | Trait Attribute  | Yes*        | Determines the size of the building's dimensions                                                  |
+| Buildable: Prerequisites: *prerequisites* | Trait Attribute  | No          | Determines what prerequisites a building needs to be built                                        |
+| Weapon: Range: *amount*                   | Weapon Attribute | Yes         | Determines the range of a weapon                                                                  |
 
 ## OpenRA
 
