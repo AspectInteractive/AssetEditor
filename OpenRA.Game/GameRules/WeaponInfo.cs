@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Linq;
 using OpenRA.Effects;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -70,7 +71,7 @@ namespace OpenRA.GameRules
 	public interface IProjectile : IEffect { }
 	public interface IProjectileInfo { IProjectile Create(ProjectileArgs args); }
 
-	public sealed class WeaponInfo
+	public sealed class WeaponInfo : IRulesetLoaded<WeaponInfo>
 	{
 		[Desc("The maximum range the weapon can fire.")]
 		public readonly WDist Range = WDist.Zero;
@@ -130,17 +131,37 @@ namespace OpenRA.GameRules
 		[FieldLoader.LoadUsing(nameof(LoadWarheads))]
 		public readonly List<IWarhead> Warheads = new();
 
+		public Ruleset Rules; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public MiniYamlNodeBuilder ResolvedWeapons; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public MiniYamlNodeBuilder UnresolvedWeapons; // used for storing unresolvedRulesYaml and resolvedRulesYaml
+		public string Name;
+
 		/// <summary>
 		/// This constructor is used solely for documentation generation.
 		/// </summary>
 		public WeaponInfo() { }
 
-		public WeaponInfo(MiniYaml content)
+		public WeaponInfo(MiniYamlNode node, string name)
 		{
 			// Resolve any weapon-level yaml inheritance or removals
 			// HACK: The "Defaults" sequence syntax prevents us from doing this generally during yaml parsing
-			content = content.WithNodes(MiniYaml.Merge(new IReadOnlyCollection<MiniYamlNode>[] { content.Nodes }));
-			FieldLoader.Load(this, content);
+			LoadYaml(node);
+			Name = name;
+		}
+
+		public void LoadYaml(MiniYamlNodeBuilder node)
+		{
+			LoadYaml(new MiniYamlNode(node));
+		}
+
+		public void LoadYaml(MiniYamlNode node)
+		{
+			MiniYaml nodeContent;
+			if (Rules != null && Rules.ResolvedWeaponsYaml != null)
+				nodeContent = Ruleset.ResolveIndividualNode(node, Rules.ResolvedWeaponsYaml);
+			else
+				nodeContent = Ruleset.ResolveIndividualNode(node);
+			FieldLoader.Load(this, nodeContent);
 		}
 
 		static object LoadProjectile(MiniYaml yaml)
@@ -172,6 +193,16 @@ namespace OpenRA.GameRules
 
 			return retList;
 		}
+
+		public void RulesetLoaded(Ruleset rules, WeaponInfo info)
+		{
+			Rules = rules;
+			Rules.UnresolvedWeaponsYamlDict.TryGetValue(Name.ToLowerInvariant(), out var unresolvedRulesYaml);
+			UnresolvedWeapons = new MiniYamlNodeBuilder(unresolvedRulesYaml);
+			ResolvedWeapons = new MiniYamlNodeBuilder(Rules.ResolvedWeaponsYaml.
+				FirstOrDefault(s => string.Equals(s.Key, Name, StringComparison.InvariantCultureIgnoreCase)));
+		}
+
 
 		public bool IsValidTarget(BitSet<TargetableType> targetTypes)
 		{

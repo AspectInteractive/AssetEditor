@@ -95,7 +95,7 @@ namespace OpenRA.Mods.Common.Commands
 			{ "power-outage", (PowerOutageDescription, PowerOutage) },
 			{ "kill", (KillSelectedActorsDescription, Kill) },
 			{ "dispose", (DisposeSelectedActorsDescription, Dispose) },
-			{ "reload", (ReloadActorsDescription, ReloadActors) }
+			{ "reload", (ReloadActorsDescription, HotReload) }
 		};
 
 		World world;
@@ -160,23 +160,30 @@ namespace OpenRA.Mods.Common.Commands
 			world.IssueOrder(giveCashOrder);
 		}
 
-		static void ReloadActors(string arg, World world)
+		static void HotReload(string arg, World world)
 		{
-			var matchingFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
+			var matchingRulesFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
+			var matchingWeaponsFile = Game.ModData.Manifest.Weapons.FirstOrDefault(f => f.Contains(arg));
 			var defaultRules = world.Map.Rules;
 
 			if (!string.IsNullOrEmpty(arg))
 			{
 				if (arg[Math.Max(0, arg.Length - 5)..] == ".yaml")
-					if (matchingFile != null)
-						defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingFile);
+					if (matchingRulesFile != null)
+						defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingRulesFile);
+					else if (matchingWeaponsFile != null)
+						defaultRules.LoadWeaponsFromFile(world, Game.ModData, matchingWeaponsFile);
 					else
-						Console.WriteLine($"Cannot find rule file specified - check spelling: {arg}. Reload aborted");
+						Console.WriteLine($"Cannot find file specified - check spelling: {arg}. Reload aborted");
 				else
+				{
 					defaultRules.LoadActorTraitsFromRulesActor(world, Game.ModData, arg);
+					defaultRules.LoadWeapon(world, Game.ModData, arg);
+				}
 			}
 			else
 				defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData);
+				defaultRules.LoadWeaponsFromFile(world, Game.ModData);
 		}
 
 		static void Visibility(string arg, World world)
