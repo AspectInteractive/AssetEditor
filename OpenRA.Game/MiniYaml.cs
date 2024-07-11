@@ -436,6 +436,9 @@ namespace OpenRA
 			return ResolveWithoutInherits(nodes, tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty);
 		}
 
+		public static MiniYaml AtomicMerge(MiniYamlNode node)
+		{ return AtomicMerge(node, new List<IReadOnlyCollection<MiniYamlNode>>() { new List<MiniYamlNode>() { node } }); }
+
 		public static MiniYaml AtomicMerge(MiniYamlNode node, IEnumerable<IReadOnlyCollection<MiniYamlNode>> allNodes)
 		{
 			var tree = allNodes
