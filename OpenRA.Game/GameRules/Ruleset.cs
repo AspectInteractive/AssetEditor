@@ -163,9 +163,14 @@ namespace OpenRA
 
 		public void LoadActorTraitsFromRulesActor(World world, ModData modData, string actorKey)
 		{
-			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
+			if (!UnresolvedRulesYamlDict.ContainsKey(actorKey))
+				return;
+
+			var yamlUnresolvedNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
+			ResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null);
 			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
-			var actorUnresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode)[actorKey.ToLowerInvariant()];
+			var actorUnresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlUnresolvedNodes, "UnresolvedRulesYaml", FilterNode)[actorKey.ToLowerInvariant()];
+			UnresolvedRulesYamlDict[actorKey] = actorUnresolvedRules; // update the Ruleset's rules Yaml
 
 			var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey, StringComparison.InvariantCultureIgnoreCase)).Value;
 
@@ -174,22 +179,18 @@ namespace OpenRA
 			if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
 				return;
 
-			// Partial templates are not allowed.
-			if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
-				return;
-
 			var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules);
 
-			var matchingWorldActors = world.Actors.Where(a => a.Info.Name.ToLowerInvariant() == actorKey).ToList();
-			matchingWorldActors.ForEach(a =>
-				{
-					//a.Info.ClearTraits();
-					//a.DisposeTraits();
-					actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
-					CallRulesetLoadedOnActors(actorKey);
-					//a.LoadCachedTraits();
-				});
-			//matchingWorldActors.ForEach(a => a.LoadCachedTraits());
+			//var matchingWorldActors = world.Actors.Where(a => a.Info.Name.ToLowerInvariant() == actorKey).ToList();
+			//matchingWorldActors.ForEach(a =>
+			//	{
+			//		//a.Info.ClearTraits();
+			//		//a.DisposeTraits();
+			//		//a.LoadCachedTraits();
+			//	});
+
+			actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+			CallRulesetLoadedOnActors(actorKey);
 		}
 
 		public void LoadActorTraitsFromRuleFile(World world, ModData modData, string ruleFile)
@@ -207,13 +208,15 @@ namespace OpenRA
 			}
 
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, ruleFiles, null);
-
 			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
 			var unresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
+			ResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null); // We need all resolved rules reloaded, not just the ones in the files
 
 			var actorInfos = new List<ActorInfo>();
 			foreach (var actorKey in unresolvedRules)
 			{
+				UnresolvedRulesYamlDict[actorKey.Key] = actorKey.Value; // update the Ruleset's rules Yaml
+
 				var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey.Key, StringComparison.InvariantCultureIgnoreCase)).Value;
 
 				Console.WriteLine($"Hot Reloading Found Actor: {actor.Name}");
@@ -221,13 +224,9 @@ namespace OpenRA
 				if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
 					continue;
 
-				// Partial templates are not allowed.
-				if (actor.Name.Contains(ActorInfo.AbstractActorPrefix))
-					continue;
+				//var newActorUnresolvedRules = new MiniYamlNodeBuilder(unresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
 
-				var newActorUnresolvedRules = new MiniYamlNodeBuilder(unresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
-
-				actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+				actor.LoadTraits(modData.ObjectCreator, actorKey.Value, true);
 				actorInfos.Add(actor);
 			}
 
@@ -238,8 +237,14 @@ namespace OpenRA
 
 		public void LoadWeapon(World world, ModData modData, string weaponKey)
 		{
+			if (!UnresolvedWeaponsYamlDict.ContainsKey(weaponKey))
+				return;
+
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
-			var unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
+			var unresolvedWeapon = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml")[weaponKey.ToLowerInvariant()];
+			ResolvedWeaponsYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+
+			UnresolvedWeaponsYamlDict[weaponKey] = unresolvedWeapon;
 
 			var weapon = Weapons.FirstOrDefault(s => string.Equals(s.Key, weaponKey, StringComparison.InvariantCultureIgnoreCase)).Value;
 
@@ -248,7 +253,7 @@ namespace OpenRA
 			if (weapon == null)
 				return;
 
-			var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapons.FirstOrDefault(s => string.Equals(s.Key, weapon.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
+			var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapon);
 
 			weapon.LoadYaml(newWeaponUnresolvedRules);
 			CallRulesetLoadedOnWeapons(weaponKey);
@@ -270,10 +275,14 @@ namespace OpenRA
 
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, weaponFiles, null);
 			var unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
+			ResolvedWeaponsYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
 
 			var weaponInfos = new List<WeaponInfo>();
+
 			foreach (var weaponKey in unresolvedWeapons)
 			{
+				UnresolvedWeaponsYamlDict[weaponKey.Key] = weaponKey.Value; // update the Ruleset's weapons Yaml
+
 				var weapon = Weapons.FirstOrDefault(s => string.Equals(s.Key, weaponKey.Key, StringComparison.InvariantCultureIgnoreCase)).Value;
 
 				Console.WriteLine($"Hot Reloading Found Weapon: {weapon.Name}");
