@@ -69,7 +69,7 @@ namespace OpenRA.Graphics
 			}
 		}
 
-		public void LoadReservations(ModData modData)
+		public void LoadReservations(ModData modData, bool showLoadScreen = true)
 		{
 			foreach (var sb in SheetBuilders.Values)
 				sb.Current.CreateBuffer();
@@ -83,7 +83,8 @@ namespace OpenRA.Graphics
 				Sprite[] SpritesForToken)>();
 			foreach (var (filename, tokens) in reservationsByFilename)
 			{
-				modData.LoadScreen?.Display();
+				if (showLoadScreen)
+					modData.LoadScreen?.Display();
 				var loadedFrames = GetFrames(fileSystem, filename, loaders, out _);
 				foreach (var token in tokens)
 				{
@@ -139,7 +140,8 @@ namespace OpenRA.Graphics
 						return sheetBuilder.Add(frame, premultiplied);
 					});
 
-				modData.LoadScreen?.Display();
+				if (showLoadScreen)
+					modData.LoadScreen?.Display();
 			}
 
 			foreach (var sb in SheetBuilders.Values)
