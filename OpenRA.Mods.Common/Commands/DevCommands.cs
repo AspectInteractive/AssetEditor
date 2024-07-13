@@ -164,30 +164,36 @@ namespace OpenRA.Mods.Common.Commands
 		{
 			var matchingRulesFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
 			var matchingWeaponsFile = Game.ModData.Manifest.Weapons.FirstOrDefault(f => f.Contains(arg));
+			var matchingSequencesFile = Game.ModData.Manifest.Sequences.FirstOrDefault(f => f.Contains(arg));
 			var defaultRules = world.Map.Rules;
 
 			if (!string.IsNullOrEmpty(arg))
 			{
 				if (arg[Math.Max(0, arg.Length - 5)..] == ".yaml")
+				{
 					if (matchingRulesFile != null)
 						defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingRulesFile);
-					else if (matchingWeaponsFile != null)
+					if (matchingWeaponsFile != null)
 						defaultRules.LoadWeaponsFromFile(world, Game.ModData, matchingWeaponsFile);
-					else
+					if (matchingSequencesFile != null)
+						world.Map.Sequences.ReloadSequenceSetFromFiles(Game.ModData.DefaultFileSystem, matchingSequencesFile);
+					if (matchingRulesFile == null && matchingWeaponsFile == null && matchingSequencesFile == null)
 						Console.WriteLine($"Cannot find file specified - check spelling: {arg}. Reload aborted");
+				}
 				else
 				{
 					defaultRules.LoadActorTraitsFromRulesActor(world, Game.ModData, arg);
 					defaultRules.LoadWeapon(world, Game.ModData, arg);
+					world.Map.Sequences.ReloadSequenceSetFromNode(Game.ModData.DefaultFileSystem, arg);
 				}
 			}
 			else
 			{
 				defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData);
 				defaultRules.LoadWeaponsFromFile(world, Game.ModData);
+				world.Map.Sequences.ReloadSequenceSetFromFiles(Game.ModData.DefaultFileSystem);
 			}
 
-			world.Map.Sequences.ReloadSequenceSet(Game.ModData.DefaultFileSystem);
 		}
 
 		static void Visibility(string arg, World world)

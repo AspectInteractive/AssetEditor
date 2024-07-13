@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.FileSystem;
 using OpenRA.Primitives;
 
@@ -39,14 +40,14 @@ namespace OpenRA.Graphics
 	{
 		int BgraSheetSize { get; }
 		int IndexedSheetSize { get; }
-		IReadOnlyDictionary<string, ISpriteSequence> ParseSequences(ModData modData, string tileSet, SpriteCache cache, MiniYamlNode node);
+		Dictionary<string, ISpriteSequence> ParseSequences(ModData modData, string tileSet, SpriteCache cache, MiniYamlNode node);
 	}
 
 	public sealed class SequenceSet : IDisposable
 	{
 		readonly ModData modData;
 		readonly string tileSet;
-		IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> images;
+		IReadOnlyDictionary<string, Dictionary<string, ISpriteSequence>> images;
 		public SpriteCache SpriteCache { get; }
 		readonly MiniYaml additionalSequences; // for reloading
 
@@ -89,31 +90,118 @@ namespace OpenRA.Graphics
 			return sequences.Keys;
 		}
 
-		public void ReloadSequenceSet(IReadOnlyFileSystem fileSystem, MiniYaml newAddSequences = null)
+		/// <summary>
+		/// Reloads one or more sequences matching the key name provided from the existing sequences files.
+		/// </summary>
+		/// <param name="fileSystem">The filesystem to use.</param>
+		/// <param name="sequenceKey">The name / key of the sequence as it is defined in one of the sequence files.</param>
+		/// <param name="newAddSequences">Any new additional sequences specified.</param>
+		public void ReloadSequenceSetFromNode(IReadOnlyFileSystem fileSystem, string sequenceKey, MiniYaml newAddSequences = null)
 		{
-			IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> newImages;
-			if (newAddSequences == null)
-				newImages = Load(fileSystem, additionalSequences);
-			else
-				newImages = Load(fileSystem, newAddSequences);
+			Dictionary<string, Dictionary<string, ISpriteSequence>> newImages;
+			var nodes = MiniYaml.Load(fileSystem, modData.Manifest.Sequences, additionalSequences);
+			var matchingSequenceNodes = nodes.Where(n => n.Key == sequenceKey).ToList();
+
+			if (matchingSequenceNodes.Count == 0)
+				return;
+
+			newAddSequences ??= additionalSequences;
+			newImages = LoadNode(fileSystem, matchingSequenceNodes, newAddSequences);
 			images = newImages;
 			LoadSprites(false);
 		}
 
-		public IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, MiniYaml additionalSequences)
+		/// <summary>
+		/// Reloads a single sequence file.
+		/// </summary>
+		/// <param name="fileSystem">The filesystem to use.</param>
+		/// <param name="sequencesFile">A sequences file.</param>
+		/// <param name="newAddSequences">Any new additional sequences specified.</param>
+		public void ReloadSequenceSetFromFiles(IReadOnlyFileSystem fileSystem, string sequencesFile, MiniYaml newAddSequences = null)
 		{
-			var nodes = MiniYaml.Load(fileSystem, modData.Manifest.Sequences, additionalSequences);
-			var images = new Dictionary<string, IReadOnlyDictionary<string, ISpriteSequence>>();
+			Dictionary<string, Dictionary<string, ISpriteSequence>> newImages;
+			newAddSequences ??= additionalSequences;
+			newImages = Load(fileSystem, sequencesFile, newAddSequences);
+			images = newImages;
+			LoadSprites(false);
+		}
+
+		/// <summary>
+		/// Reloads one or more sequence files.
+		/// </summary>
+		/// <param name="fileSystem">The filesystem to use.</param>
+		/// <param name="sequencesFiles">a list of one or more sequences files.</param>
+		/// <param name="newAddSequences">Any new additional sequences specified.</param>
+		public void ReloadSequenceSetFromFiles(IReadOnlyFileSystem fileSystem, string[] sequencesFiles = null, MiniYaml newAddSequences = null)
+		{
+			Dictionary<string, Dictionary<string, ISpriteSequence>> newImages;
+			sequencesFiles ??= modData.Manifest.Sequences;
+			newAddSequences ??= additionalSequences;
+			newImages = Load(fileSystem, sequencesFiles, newAddSequences);
+			images = newImages;
+			LoadSprites(false);
+		}
+
+		public Dictionary<string, Dictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, string sequencesFile, MiniYaml additionalSequences)
+		{
+			return Load(fileSystem, new string[] { sequencesFile }, additionalSequences);
+		}
+
+		public Dictionary<string, Dictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, MiniYaml additionalSequences)
+		{
+			return Load(fileSystem, modData.Manifest.Sequences, additionalSequences);
+		}
+
+
+		/// <summary>
+		/// Loads a list of sequence files.
+		/// </summary>
+		/// <param name="fileSystem">The filesystem to use.</param>
+		/// <param name="sequencesFiles">a list of one or more sequences files.</param>
+		/// <param name="additionalSequences">Any additional sequences specified.</param>
+		/// <returns>A dictionary containing all images</returns>
+		public Dictionary<string, Dictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, string[] sequencesFiles, MiniYaml additionalSequences)
+		{
+			var nodes = MiniYaml.Load(fileSystem, sequencesFiles, additionalSequences);
+			Dictionary<string, Dictionary<string, ISpriteSequence>> newImages;
+			if (images == null)
+				newImages = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
+			else
+				newImages = (Dictionary<string, Dictionary<string, ISpriteSequence>>)images;
+
 			foreach (var node in nodes)
 			{
 				// Nodes starting with ^ are inheritable but never loaded directly
 				if (node.Key.StartsWith(ActorInfo.AbstractActorPrefix))
 					continue;
 
-				images[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
+				newImages[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
 			}
 
-			return images;
+			return newImages;
+		}
+
+		/// <summary>
+		/// Loads a set of sequence nodes. Requires images to have already been loaded.
+		/// </summary>
+		/// <param name="fileSystem">The filesystem to use.</param>
+		/// <param name="nodes">a list of nodes from one or more sequences files.</param>
+		/// <param name="additionalSequences">Any additional sequences specified.</param>
+		/// <returns>A dictionary containing all images.</returns>
+		public Dictionary<string, Dictionary<string, ISpriteSequence>> LoadNode(IReadOnlyFileSystem fileSystem, List<MiniYamlNode> nodes, MiniYaml additionalSequences)
+		{
+			var newImages = (Dictionary<string, Dictionary<string, ISpriteSequence>>)images;
+
+			// Nodes starting with ^ are inheritable but never loaded directly
+			foreach (var node in nodes)
+			{
+				if (node.Key.StartsWith(ActorInfo.AbstractActorPrefix))
+					return newImages;
+
+				newImages[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
+			}
+
+			return newImages;
 		}
 
 		public void LoadSprites(bool showLoadScreen = true)
