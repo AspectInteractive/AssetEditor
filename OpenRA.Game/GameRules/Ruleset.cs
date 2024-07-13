@@ -191,6 +191,7 @@ namespace OpenRA
 
 			actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
 			CallRulesetLoadedOnActors(actorKey);
+			world.RecreateActors();
 		}
 
 		public void LoadActorTraitsFromRuleFile(World world, ModData modData, string ruleFile)
@@ -231,6 +232,7 @@ namespace OpenRA
 			}
 
 			CallRulesetLoadedOnActorsList(actorInfos);
+			world.RecreateActors();
 			//world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
 			//	.ToList().ForEach(a => a.LoadCachedTraits());
 		}

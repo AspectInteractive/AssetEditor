@@ -38,6 +38,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		readonly WithMakeAnimationInfo info;
 		readonly WithSpriteBody[] wsbs;
 		readonly bool skipMakeAnimation;
+		bool skipMakeAnimationOnce = false;
 		WithMakeOverlay[] overlays;
 
 		int token = Actor.InvalidConditionToken;
@@ -48,11 +49,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var self = init.Self;
 			wsbs = self.TraitsImplementing<WithSpriteBody>().Where(w => info.BodyNames.Contains(w.Info.Name)).ToArray();
 			skipMakeAnimation = init.Contains<SkipMakeAnimsInit>(info);
+			skipMakeAnimationOnce = init.GetValue<SkipMakeAnimsOnceInit, bool>(false);
 		}
 
 		void INotifyCreated.Created(Actor self)
 		{
 			overlays = self.TraitsImplementing<WithMakeOverlay>().ToArray();
+			if (skipMakeAnimationOnce)
+			{
+				skipMakeAnimationOnce = false;
+				return;
+			}
+
 			if (!skipMakeAnimation)
 				Forward(self, () => { });
 		}
