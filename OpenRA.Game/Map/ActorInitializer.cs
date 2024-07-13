@@ -222,6 +222,37 @@ namespace OpenRA
 			: base(value) { }
 	}
 
+	public class CenterPositionInit : ValueActorInit<WPos>, ISingleInstanceInit
+	{
+		public CenterPositionInit(WPos value)
+			: base(value) { }
+	}
+
+	// Allows maps / transformations to specify the faction variant of an actor.
+	public class FactionInit : ValueActorInit<string>, ISingleInstanceInit
+	{
+		public FactionInit(string value)
+			: base(value) { }
+	}
+
+	public class FacingInit : ValueActorInit<WAngle>, ISingleInstanceInit
+	{
+		public FacingInit(WAngle value)
+			: base(value) { }
+	}
+
+	public class SkipMakeAnimsOnceInit : ValueActorInit<bool>, ISingleInstanceInit
+	{
+		public SkipMakeAnimsOnceInit(bool value)
+			: base(value) { }
+	}
+
+	public class CreationActivityDelayInit : ValueActorInit<int>, ISingleInstanceInit
+	{
+		public CreationActivityDelayInit(int value)
+			: base(value) { }
+	}
+
 	public class OwnerInit : ActorInit, ISingleInstanceInit
 	{
 		public readonly string InternalName;

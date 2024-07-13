@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Commands
@@ -162,6 +163,7 @@ namespace OpenRA.Mods.Common.Commands
 
 		static void HotReload(string arg, World world)
 		{
+
 			var matchingRulesFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
 			var matchingWeaponsFile = Game.ModData.Manifest.Weapons.FirstOrDefault(f => f.Contains(arg));
 			var matchingSequencesFile = Game.ModData.Manifest.Sequences.FirstOrDefault(f => f.Contains(arg));
@@ -193,7 +195,6 @@ namespace OpenRA.Mods.Common.Commands
 				defaultRules.LoadWeaponsFromFile(world, Game.ModData);
 				world.Map.Sequences.ReloadSequenceSetFromFiles(Game.ModData.DefaultFileSystem);
 			}
-
 		}
 
 		static void Visibility(string arg, World world)
