@@ -182,8 +182,12 @@ namespace OpenRA.Mods.Common.Commands
 				}
 			}
 			else
+			{
 				defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData);
 				defaultRules.LoadWeaponsFromFile(world, Game.ModData);
+			}
+
+			world.Map.Sequences.ReloadSequenceSet(Game.ModData.DefaultFileSystem);
 		}
 
 		static void Visibility(string arg, World world)

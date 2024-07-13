@@ -46,8 +46,9 @@ namespace OpenRA.Graphics
 	{
 		readonly ModData modData;
 		readonly string tileSet;
-		readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> images;
+		IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> images;
 		public SpriteCache SpriteCache { get; }
+		readonly MiniYaml additionalSequences; // for reloading
 
 		public SequenceSet(IReadOnlyFileSystem fileSystem, ModData modData, string tileSet, MiniYaml additionalSequences)
 		{
@@ -56,6 +57,7 @@ namespace OpenRA.Graphics
 			SpriteCache = new SpriteCache(fileSystem, modData.SpriteLoaders, modData.SpriteSequenceLoader.BgraSheetSize, modData.SpriteSequenceLoader.IndexedSheetSize);
 			using (new Support.PerfTimer("LoadSequences"))
 				images = Load(fileSystem, additionalSequences);
+			this.additionalSequences = additionalSequences;
 		}
 
 		public ISpriteSequence GetSequence(string image, string sequence)
@@ -87,7 +89,18 @@ namespace OpenRA.Graphics
 			return sequences.Keys;
 		}
 
-		IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, MiniYaml additionalSequences)
+		public void ReloadSequenceSet(IReadOnlyFileSystem fileSystem, MiniYaml newAddSequences = null)
+		{
+			IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> newImages;
+			if (newAddSequences == null)
+				newImages = Load(fileSystem, additionalSequences);
+			else
+				newImages = Load(fileSystem, newAddSequences);
+			images = newImages;
+			LoadSprites(false);
+		}
+
+		public IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, MiniYaml additionalSequences)
 		{
 			var nodes = MiniYaml.Load(fileSystem, modData.Manifest.Sequences, additionalSequences);
 			var images = new Dictionary<string, IReadOnlyDictionary<string, ISpriteSequence>>();
@@ -103,9 +116,9 @@ namespace OpenRA.Graphics
 			return images;
 		}
 
-		public void LoadSprites()
+		public void LoadSprites(bool showLoadScreen = true)
 		{
-			SpriteCache.LoadReservations(modData);
+			SpriteCache.LoadReservations(modData, showLoadScreen);
 			foreach (var sequences in images.Values)
 				foreach (var sequence in sequences)
 					sequence.Value.ResolveSprites(SpriteCache);
