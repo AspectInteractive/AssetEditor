@@ -86,7 +86,7 @@ namespace OpenRA
 				foreach (var t in WorldActor.TraitsImplementing<IGameOver>())
 					t.GameOver(this);
 
-				gameInfo.FinalGameTick = WorldTick;
+				GameInfo.FinalGameTick = WorldTick;
 				GameOver();
 			}
 		}
@@ -149,7 +149,7 @@ namespace OpenRA
 		public readonly IValidateOrder[] OrderValidators;
 		readonly INotifyPlayerDisconnected[] notifyDisconnected;
 
-		readonly GameInformation gameInfo;
+		public readonly GameInformation GameInfo;
 
 		// Hide the OrderManager from mod code
 		public void IssueOrder(Order o) { OrderManager.IssueOrder(o); }
@@ -236,7 +236,7 @@ namespace OpenRA
 
 			Game.Sound.SoundVolumeModifier = 1.0f;
 
-			gameInfo = new GameInformation
+			GameInfo = new GameInformation
 			{
 				Mod = Game.ModData.Manifest.Id,
 				Version = Game.ModData.Manifest.Metadata.Version,
@@ -302,14 +302,14 @@ namespace OpenRA
 						iwl.WorldLoaded(this, wr);
 
 			foreach (var player in Players)
-				gameInfo.AddPlayer(player, OrderManager.LobbyInfo);
+				GameInfo.AddPlayer(player, OrderManager.LobbyInfo);
 
-			gameInfo.DisabledSpawnPoints = OrderManager.LobbyInfo.DisabledSpawnPoints;
+			GameInfo.DisabledSpawnPoints = OrderManager.LobbyInfo.DisabledSpawnPoints;
 
-			gameInfo.StartTimeUtc = DateTime.UtcNow;
+			GameInfo.StartTimeUtc = DateTime.UtcNow;
 
 			if (OrderManager.Connection is NetworkConnection nc && nc.Recorder != null)
-				nc.Recorder.Metadata = new ReplayMetadata(gameInfo);
+				nc.Recorder.Metadata = new ReplayMetadata(GameInfo);
 		}
 
 		public void PostLoadComplete(WorldRenderer wr)
@@ -553,7 +553,7 @@ namespace OpenRA
 
 		public void OnPlayerWinStateChanged(Player player)
 		{
-			var pi = gameInfo.GetPlayer(player);
+			var pi = GameInfo.GetPlayer(player);
 			if (pi != null)
 			{
 				pi.Outcome = player.WinState;
@@ -571,7 +571,7 @@ namespace OpenRA
 				foreach (var p in Players)
 					p.PlayerDisconnected(player);
 
-				var pi = gameInfo.GetPlayer(player);
+				var pi = GameInfo.GetPlayer(player);
 				if (pi != null)
 					pi.DisconnectFrame = OrderManager.NetFrameNumber;
 			}
