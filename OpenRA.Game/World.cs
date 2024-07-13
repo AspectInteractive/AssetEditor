@@ -13,15 +13,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
+using OpenRA.Activities;
 using OpenRA.Effects;
 using OpenRA.FileFormats;
+using OpenRA.FileSystem;
 using OpenRA.Graphics;
 using OpenRA.Network;
 using OpenRA.Orders;
 using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace OpenRA
 {
@@ -626,6 +630,71 @@ namespace OpenRA
 			Map.Dispose();
 
 			Game.FinishBenchmark();
+		}
+
+		public void RecreateActors()
+		{
+			var validActors = TraitDict.ActorsHavingTrait<INotifyAddedToWorld>()
+				.Where(a => a.Owner.Playable && a.Info.Name != "player");
+
+			foreach (var actor in validActors)
+			{
+				// All actor state properties should be stored here before the actor is disposed so they can be re-added after recreation
+				var inits = new TypeDictionary
+				{
+					new FacingInit(actor.TraitOrDefault<IFacing>() != null ? actor.TraitOrDefault<IFacing>().Facing : WAngle.Zero),
+					new SkipMakeAnimsOnceInit(true),
+				};
+
+				if (actor.Disposed)
+					continue;
+
+				actor.Dispose();
+				ProduceActor(actor, inits);
+			}
+		}
+
+		public void ProduceActor(Actor existingActor, TypeDictionary inits)
+		{
+			var producee = existingActor.Info;
+
+			var exit = CPos.Zero;
+			var exitLocations = new List<CPos>();
+
+			if (existingActor.OccupiesSpace != null)
+			{
+				exit = existingActor.Location;
+
+				var spawn = existingActor.World.Map.CenterOfCell(exit) + new WVec(WDist.Zero, WDist.Zero, WDist.Zero);
+				var to = existingActor.World.Map.CenterOfCell(exit);
+
+				exitLocations = new List<CPos> { existingActor.Location };
+
+				var td = new TypeDictionary();
+				foreach (var init in inits)
+					td.Add(init);
+
+				td.Add(new LocationInit(exit));
+				td.Add(new OwnerInit(existingActor.Owner));
+				td.Add(new CenterPositionInit(spawn));
+				td.Add(new FactionInit(existingActor.Owner.Faction.InternalName));
+				td.Add(new CreationActivityDelayInit(0));
+
+				existingActor.World.AddFrameEndTask(w =>
+				{
+					var newUnit = existingActor.World.CreateActor(producee.Name, td);
+
+					// TO DO: Figure out how to do this from within OpenRA.Game instead of OpenRA.Mods.Common
+					//if (!actor.IsDead)
+					//	foreach (var t in actor.TraitsImplementing<INotifyProduction>())
+					//		t.UnitProduced(actor, newUnit, exit);
+
+					//var notifyOthers = actor.World.ActorsWithTrait<INotifyOtherProduction>();
+
+					//foreach (var notify in notifyOthers)
+					//	notify.Trait.UnitProducedByOther(notify.Actor, actor, newUnit, null, td);
+				});
+			}
 		}
 
 		public void OutOfSync()
