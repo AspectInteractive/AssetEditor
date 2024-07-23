@@ -195,6 +195,8 @@ namespace OpenRA.Mods.Common.Commands
 				defaultRules.LoadWeaponsFromFile(world, Game.ModData);
 				world.Map.Sequences.ReloadSequenceSetFromFiles(Game.ModData.DefaultFileSystem);
 			}
+
+			world.RecreateActors();
 		}
 
 		static void Visibility(string arg, World world)
