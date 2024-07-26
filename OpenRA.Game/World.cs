@@ -13,19 +13,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
-using System.Reflection;
-using OpenRA.Activities;
 using OpenRA.Effects;
 using OpenRA.FileFormats;
-using OpenRA.FileSystem;
 using OpenRA.Graphics;
 using OpenRA.Network;
 using OpenRA.Orders;
 using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Traits;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace OpenRA
 {
@@ -86,7 +81,7 @@ namespace OpenRA
 				foreach (var t in WorldActor.TraitsImplementing<IGameOver>())
 					t.GameOver(this);
 
-				GameInfo.FinalGameTick = WorldTick;
+				gameInfo.FinalGameTick = WorldTick;
 				GameOver();
 			}
 		}
@@ -149,7 +144,7 @@ namespace OpenRA
 		public readonly IValidateOrder[] OrderValidators;
 		readonly INotifyPlayerDisconnected[] notifyDisconnected;
 
-		public readonly GameInformation GameInfo;
+		readonly GameInformation gameInfo;
 
 		// Hide the OrderManager from mod code
 		public void IssueOrder(Order o) { OrderManager.IssueOrder(o); }
@@ -236,7 +231,7 @@ namespace OpenRA
 
 			Game.Sound.SoundVolumeModifier = 1.0f;
 
-			GameInfo = new GameInformation
+			gameInfo = new GameInformation
 			{
 				Mod = Game.ModData.Manifest.Id,
 				Version = Game.ModData.Manifest.Metadata.Version,
@@ -302,14 +297,14 @@ namespace OpenRA
 						iwl.WorldLoaded(this, wr);
 
 			foreach (var player in Players)
-				GameInfo.AddPlayer(player, OrderManager.LobbyInfo);
+				gameInfo.AddPlayer(player, OrderManager.LobbyInfo);
 
-			GameInfo.DisabledSpawnPoints = OrderManager.LobbyInfo.DisabledSpawnPoints;
+			gameInfo.DisabledSpawnPoints = OrderManager.LobbyInfo.DisabledSpawnPoints;
 
-			GameInfo.StartTimeUtc = DateTime.UtcNow;
+			gameInfo.StartTimeUtc = DateTime.UtcNow;
 
 			if (OrderManager.Connection is NetworkConnection nc && nc.Recorder != null)
-				nc.Recorder.Metadata = new ReplayMetadata(GameInfo);
+				nc.Recorder.Metadata = new ReplayMetadata(gameInfo);
 		}
 
 		public void PostLoadComplete(WorldRenderer wr)
@@ -553,7 +548,7 @@ namespace OpenRA
 
 		public void OnPlayerWinStateChanged(Player player)
 		{
-			var pi = GameInfo.GetPlayer(player);
+			var pi = gameInfo.GetPlayer(player);
 			if (pi != null)
 			{
 				pi.Outcome = player.WinState;
@@ -571,7 +566,7 @@ namespace OpenRA
 				foreach (var p in Players)
 					p.PlayerDisconnected(player);
 
-				var pi = GameInfo.GetPlayer(player);
+				var pi = gameInfo.GetPlayer(player);
 				if (pi != null)
 					pi.DisconnectFrame = OrderManager.NetFrameNumber;
 			}

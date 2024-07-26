@@ -1,4 +1,15 @@
-﻿using System;
+﻿#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -23,13 +34,9 @@ namespace OpenRA.GameRules
 		readonly IReadOnlyDictionary<string, string> watchFiles;
 		readonly HashSet<string> fileQueue = new(FileNameComparer);
 		readonly FileSystemWatcher watcher;
-
-		volatile bool isEnabled;
 		bool isDisposed;
 
 		CancellationTokenSource debounceCts;
-
-		public bool IsEnabled => isEnabled;
 
 		public RulesetWatcher(World world, ModData modData)
 		{
@@ -61,31 +68,9 @@ namespace OpenRA.GameRules
 			watcher.Changed += FileChanged;
 
 			foreach (var file in watchFiles.Keys)
-			{
 				watcher.Filters.Add(Path.GetFileName(file));
-			}
-		}
 
-		public void ToggleWatching(bool toggleValue)
-		{
-			if (isDisposed)
-				throw new ObjectDisposedException(nameof(RulesetWatcher));
-
-			lock (syncLock)
-			{
-				if (isDisposed)
-					throw new ObjectDisposedException(nameof(RulesetWatcher));
-
-				watcher.EnableRaisingEvents = toggleValue;
-
-				isEnabled = toggleValue;
-
-				if (!toggleValue)
-				{
-					debounceCts?.Dispose();
-					fileQueue.Clear();
-				}
-			}
+			watcher.EnableRaisingEvents = true;
 		}
 
 		void FileChanged(object sender, FileSystemEventArgs e)
@@ -95,7 +80,7 @@ namespace OpenRA.GameRules
 
 			lock (syncLock)
 			{
-				if (!isEnabled || isDisposed)
+				if (isDisposed)
 					return;
 
 				fileQueue.Add(e.FullPath);
@@ -133,7 +118,7 @@ namespace OpenRA.GameRules
 		{
 			lock (syncLock)
 			{
-				if (isDisposed || !isEnabled || files.Count == 0)
+				if (isDisposed || files.Count == 0)
 					return;
 			}
 
@@ -189,7 +174,6 @@ namespace OpenRA.GameRules
 				debounceCts?.Dispose();
 				fileQueue.Clear();
 
-				isEnabled = false;
 				isDisposed = true;
 
 				watcher.Changed -= FileChanged;
