@@ -169,6 +169,12 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.UpdateMaps(self, this);
 		}
 
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new CenterPositionInit(CenterPosition));
+			dict.Add(new FacingInit(Facing));
+		}
+
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
 			self.World.AddToMaps(self, this);

@@ -272,6 +272,20 @@ namespace OpenRA
 				World.Add(this);
 		}
 
+		public TypeDictionary SaveActor()
+		{
+			var dict = new TypeDictionary()
+			{
+				new LocationInit(Location),
+				new OwnerInit(Owner),
+			};
+
+			foreach (var trait in TraitsImplementing<ISaveActor>())
+				trait.SaveActor(this, dict);
+
+			return dict;
+		}
+
 		public void Tick()
 		{
 			var wasIdle = IsIdle;
