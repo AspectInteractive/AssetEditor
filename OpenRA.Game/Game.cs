@@ -202,9 +202,6 @@ namespace OpenRA
 			// Proactively collect memory during loading to reduce peak memory.
 			GC.Collect();
 
-			RulesetWatcher?.Dispose();
-			RulesetWatcher = new RulesetWatcher(OrderManager.World, ModData);
-
 			using (new PerfTimer("LoadComplete"))
 				OrderManager.World.LoadComplete(worldRenderer);
 
