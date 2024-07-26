@@ -96,12 +96,5 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				ds.RecreateActorsAfterRulesetReload = dds.RecreateActorsAfterRulesetReload;
 			};
 		}
-
-		protected override void Dispose(bool disposing)
-		{
-			base.Dispose(disposing);
-
-			Game.RulesetWatcher?.ToggleWatching(Game.Settings.Debug.EnableRulesetAutoReload);
-		}
 	}
 }

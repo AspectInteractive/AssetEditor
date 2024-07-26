@@ -1,4 +1,16 @@
-﻿using System;
+﻿#region Copyright & License Information
+/*
+ * Copyright (c) The OpenRA Developers and Contributors
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
+#endregion
+
+using System;
+using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Commands;
 using OpenRA.Traits;
@@ -65,8 +77,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IPostWorldLoaded.PostWorldLoaded(World w, WorldRenderer wr)
 		{
-			if (Enabled && w.GameInfo.IsSinglePlayer)
-				Game.RulesetWatcher.ToggleWatching(true);
+			if (Enabled && world.LobbyInfo.GlobalSettings.GameSavesEnabled)
+			{
+				Game.RulesetWatcher?.Dispose();
+				Game.RulesetWatcher = new RulesetWatcher(w, Game.ModData);
+			}
 		}
 
 		void IChatCommand.InvokeCommand(string name, string arg)
@@ -80,7 +95,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			if (!world.GameInfo.IsSinglePlayer)
+			if (!world.LobbyInfo.GlobalSettings.GameSavesEnabled)
 			{
 				TextNotificationsManager.Debug(TranslationProvider.GetString(AutoReloadMultiplayerDisabled));
 				return;
@@ -99,6 +114,17 @@ namespace OpenRA.Mods.Common.Traits
 
 				Enabled = shouldEnable;
 
+				if (shouldEnable)
+				{
+					Game.RulesetWatcher?.Dispose();
+					Game.RulesetWatcher = new RulesetWatcher(world, Game.ModData);
+				}
+				else
+				{
+					Game.RulesetWatcher?.Dispose();
+					Game.RulesetWatcher = null;
+				}
+
 				TextNotificationsManager.Debug(TranslationProvider.GetString(shouldEnable ? AutoReloadEnabled : AutoReloadDisabled));
 			}
 
@@ -106,17 +132,13 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				result = false;
 
-				value = value.ToLowerInvariant();
-				if ("on".Equals(value, StringComparison.OrdinalIgnoreCase))
+				if (value.Equals("on", StringComparison.InvariantCultureIgnoreCase))
 				{
 					result = true;
 					return true;
 				}
-				else if ("off".Equals(value, StringComparison.OrdinalIgnoreCase))
-				{
-					result = true;
+				else if (value.Equals("off", StringComparison.InvariantCultureIgnoreCase))
 					return true;
-				}
 
 				return false;
 			}
