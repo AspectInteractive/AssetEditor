@@ -898,6 +898,12 @@ namespace OpenRA.Mods.Common.Traits
 			return landingCells.Length > 0;
 		}
 
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new CenterPositionInit(CenterPosition));
+			dict.Add(new FacingInit(Facing));
+		}
+
 		#endregion
 
 		#region Implement IMove

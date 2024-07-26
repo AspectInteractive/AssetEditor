@@ -895,7 +895,7 @@ namespace OpenRA.Mods.Common.Traits
 			SubCell subCell = SubCell.FullCell, Actor ignoreActor = null, BlockedByActor check = BlockedByActor.All);
 	}
 
-	public interface IPositionable : IOccupySpace
+	public interface IPositionable : IOccupySpace, ISaveActor
 	{
 		bool CanExistInCell(CPos location);
 		bool IsLeavingCell(CPos location, SubCell subCell = SubCell.Any);

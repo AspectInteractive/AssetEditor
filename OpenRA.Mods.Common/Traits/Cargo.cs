@@ -89,7 +89,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class Cargo : ConditionalTrait<CargoInfo>, IIssueOrder, IResolveOrder, IOrderVoice,
 		INotifyOwnerChanged, INotifySold, INotifyActorDisposing, IIssueDeployOrder,
-		INotifyCreated, INotifyKilled, ITransformActorInitModifier
+		INotifyCreated, INotifyKilled, ITransformActorInitModifier, ISaveActor
 	{
 		readonly Actor self;
 		readonly List<Actor> cargo = new();
@@ -439,6 +439,11 @@ namespace OpenRA.Mods.Common.Traits
 					c.Kill(e.Attacker);
 
 			cargo.Clear();
+		}
+
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new CargoInit(Info, cargo.Select(c => c.Info.Name).ToArray()));
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)

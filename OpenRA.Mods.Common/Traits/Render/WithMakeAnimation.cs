@@ -12,6 +12,7 @@
 using System;
 using System.Linq;
 using OpenRA.Activities;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits.Render
@@ -33,12 +34,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public override object Create(ActorInitializer init) { return new WithMakeAnimation(init, this); }
 	}
 
-	public class WithMakeAnimation : INotifyCreated, INotifyDeployTriggered
+	public class WithMakeAnimation : INotifyCreated, INotifyDeployTriggered, ISaveActor
 	{
 		readonly WithMakeAnimationInfo info;
 		readonly WithSpriteBody[] wsbs;
 		readonly bool skipMakeAnimation;
-		bool skipMakeAnimationOnce = false;
 		WithMakeOverlay[] overlays;
 
 		int token = Actor.InvalidConditionToken;
@@ -49,20 +49,18 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var self = init.Self;
 			wsbs = self.TraitsImplementing<WithSpriteBody>().Where(w => info.BodyNames.Contains(w.Info.Name)).ToArray();
 			skipMakeAnimation = init.Contains<SkipMakeAnimsInit>(info);
-			skipMakeAnimationOnce = init.GetValue<SkipMakeAnimsOnceInit, bool>(false);
 		}
 
 		void INotifyCreated.Created(Actor self)
 		{
 			overlays = self.TraitsImplementing<WithMakeOverlay>().ToArray();
-			if (skipMakeAnimationOnce)
-			{
-				skipMakeAnimationOnce = false;
-				return;
-			}
-
 			if (!skipMakeAnimation)
 				Forward(self, () => { });
+		}
+
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new SkipMakeAnimsInit());
 		}
 
 		public void Forward(Actor self, Action onComplete)
