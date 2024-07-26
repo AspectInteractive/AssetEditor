@@ -631,6 +631,8 @@ namespace OpenRA.Traits
 	[RequireExplicitImplementation]
 	public interface ICreationActivity { Activity GetCreationActivity(); }
 
+	public interface ISaveActor { void SaveActor(Actor self, TypeDictionary dict); }
+
 	[RequireExplicitImplementation]
 	public interface IObservesVariablesInfo : ITraitInfoInterface { }
 

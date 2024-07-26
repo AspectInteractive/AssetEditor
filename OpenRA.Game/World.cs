@@ -634,61 +634,29 @@ namespace OpenRA
 
 			foreach (var actor in validActors)
 			{
-				// All actor state properties should be stored here before the actor is disposed so they can be re-added after recreation
-				var inits = new TypeDictionary
-				{
-					new FacingInit(actor.TraitOrDefault<IFacing>() != null ? actor.TraitOrDefault<IFacing>().Facing : WAngle.Zero),
-					new SkipMakeAnimsOnceInit(true),
-				};
-
 				if (actor.Disposed)
 					continue;
 
-				actor.Dispose();
-				ProduceActor(actor, inits);
-			}
-		}
+				var inits = actor.SaveActor();
 
-		public void ProduceActor(Actor existingActor, TypeDictionary inits)
-		{
-			var producee = existingActor.Info;
+				var producee = actor.Info;
 
-			var exit = CPos.Zero;
-			var exitLocations = new List<CPos>();
-
-			if (existingActor.OccupiesSpace != null)
-			{
-				exit = existingActor.Location;
-
-				var spawn = existingActor.World.Map.CenterOfCell(exit) + new WVec(WDist.Zero, WDist.Zero, WDist.Zero);
-				var to = existingActor.World.Map.CenterOfCell(exit);
-
-				exitLocations = new List<CPos> { existingActor.Location };
-
-				var td = new TypeDictionary();
-				foreach (var init in inits)
-					td.Add(init);
-
-				td.Add(new LocationInit(exit));
-				td.Add(new OwnerInit(existingActor.Owner));
-				td.Add(new CenterPositionInit(spawn));
-				td.Add(new FactionInit(existingActor.Owner.Faction.InternalName));
-				td.Add(new CreationActivityDelayInit(0));
-
-				existingActor.World.AddFrameEndTask(w =>
+				AddFrameEndTask(w =>
 				{
-					var newUnit = existingActor.World.CreateActor(producee.Name, td);
+					var newUnit = CreateActor(producee.Name, inits);
 
 					// TO DO: Figure out how to do this from within OpenRA.Game instead of OpenRA.Mods.Common
-					//if (!actor.IsDead)
-					//	foreach (var t in actor.TraitsImplementing<INotifyProduction>())
-					//		t.UnitProduced(actor, newUnit, exit);
+					// if (!actor.IsDead)
+					// 	foreach (var t in actor.TraitsImplementing<INotifyProduction>())
+					// 		t.UnitProduced(actor, newUnit, exit);
 
-					//var notifyOthers = actor.World.ActorsWithTrait<INotifyOtherProduction>();
+					// var notifyOthers = actor.World.ActorsWithTrait<INotifyOtherProduction>();
 
-					//foreach (var notify in notifyOthers)
-					//	notify.Trait.UnitProducedByOther(notify.Actor, actor, newUnit, null, td);
+					// foreach (var notify in notifyOthers)
+					// 	notify.Trait.UnitProducedByOther(notify.ctor, actor, newUnit, null, td);
 				});
+
+				actor.Dispose();
 			}
 		}
 

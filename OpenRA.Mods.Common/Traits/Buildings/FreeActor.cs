@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new FreeActor(init, this); }
 	}
 
-	public class FreeActor : ConditionalTrait<FreeActorInfo>
+	public class FreeActor : ConditionalTrait<FreeActorInfo>, ISaveActor
 	{
 		protected bool allowSpawn;
 
@@ -80,6 +80,11 @@ namespace OpenRA.Mods.Common.Traits
 					new FacingInit(Info.Facing),
 				});
 			});
+		}
+
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new FreeActorInit(Info, false));
 		}
 	}
 

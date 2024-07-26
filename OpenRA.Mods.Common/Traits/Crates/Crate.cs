@@ -240,6 +240,11 @@ namespace OpenRA.Mods.Common.Traits
 			return GetAvailableSubCell(a, SubCell.Any, ignoreActor, check) != SubCell.Invalid;
 		}
 
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new CenterPositionInit(CenterPosition));
+		}
+
 		bool ICrushable.CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
 			return crushClasses.Contains(info.CrushClass);

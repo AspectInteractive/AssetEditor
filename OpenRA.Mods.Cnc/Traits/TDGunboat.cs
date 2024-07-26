@@ -196,6 +196,12 @@ namespace OpenRA.Mods.Cnc.Traits
 					n.CenterPositionChanged(self, 0, 0);
 		}
 
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new CenterPositionInit(CenterPosition));
+			dict.Add(new FacingInit(Facing));
+		}
+
 		public Activity MoveTo(CPos cell, int nearEnough = 0, Actor ignoreActor = null,
 			bool evaluateNearestMovableCell = false, Color? targetLineColor = null)
 		{ return null; }

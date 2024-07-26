@@ -289,8 +289,7 @@ namespace OpenRA.Mods.Common.Traits
 				SetCenterPosition(self, init.World.Map.CenterOfSubCell(FromCell, FromSubCell));
 			}
 
-			// HACK: Because OpenRA.Game does not have access to OpenRA.Mods.Common.FacingInit, we have to create our own type and use it separately as a fallback.
-			Facing = oldFacing = init.GetValue<FacingInit, WAngle>(init.GetValue<OpenRA.FacingInit, WAngle>(info.InitialFacing));
+			Facing = oldFacing = init.GetValue<FacingInit, WAngle>(info.InitialFacing);
 
 			// Sets the initial center position
 			// Unit will move into the cell grid (defined by LocationInit) as its initial activity
@@ -537,6 +536,13 @@ namespace OpenRA.Mods.Common.Traits
 		public bool CanStayInCell(CPos cell)
 		{
 			return Info.CanStayInCell(self.World, cell);
+		}
+
+		void ISaveActor.SaveActor(Actor self, TypeDictionary dict)
+		{
+			dict.Add(new CenterPositionInit(CenterPosition));
+			dict.Add(new SubCellInit(ToSubCell));
+			dict.Add(new FacingInit(Facing));
 		}
 
 		#endregion
