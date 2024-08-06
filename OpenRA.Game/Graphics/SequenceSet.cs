@@ -135,7 +135,15 @@ namespace OpenRA.Graphics
 		public void ReloadSequenceSetFromFiles(IReadOnlyFileSystem fileSystem, string[] sequencesFiles = null, MiniYaml newAddSequences = null)
 		{
 			Dictionary<string, Dictionary<string, ISpriteSequence>> newImages;
-			sequencesFiles ??= modData.Manifest.Sequences;
+
+			if (sequencesFiles == null || sequencesFiles.Length == 0)
+			{
+				TextNotificationsManager.Debug("No sequence file specified, reloading all sequence files.");
+				sequencesFiles = modData.Manifest.Sequences;
+			}
+			else
+				TextNotificationsManager.Debug($"Reloading sequence files: {string.Join(", ", sequencesFiles)}");
+
 			newAddSequences ??= additionalSequences;
 			newImages = Load(fileSystem, sequencesFiles, newAddSequences);
 			images = newImages;
