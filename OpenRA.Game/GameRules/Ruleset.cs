@@ -273,9 +273,11 @@ namespace OpenRA
 		{
 			if (weaponFiles == null || weaponFiles.Length == 0)
 			{
-				Console.WriteLine("No weapon file specified, reloading all weapon files.");
+				TextNotificationsManager.Debug("No weapon file specified, reloading all weapon files.");
 				weaponFiles = modData.Manifest.Weapons;
 			}
+			else
+				TextNotificationsManager.Debug($"Reloading weapon files: {string.Join(", ", weaponFiles)}");
 
 			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, weaponFiles, null);
 			var unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
