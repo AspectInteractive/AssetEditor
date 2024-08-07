@@ -151,11 +151,11 @@ namespace OpenRA
 						WorldActorInfo = new ActorInfo(
 							modData.ObjectCreator,
 							"world",
-							yamlNodes.First(n => string.Equals(n.Key, "world", StringComparison.InvariantCultureIgnoreCase)).Value);
+							yamlNodes.First(n => string.Equals(n.Key, "world", StringComparison.InvariantCultureIgnoreCase)));
 						PlayerActorInfo = new ActorInfo(
 							modData.ObjectCreator,
 							"player",
-							yamlNodes.First(n => string.Equals(n.Key, "player", StringComparison.InvariantCultureIgnoreCase)).Value);
+							yamlNodes.First(n => string.Equals(n.Key, "player", StringComparison.InvariantCultureIgnoreCase)));
 						return;
 					}
 				}

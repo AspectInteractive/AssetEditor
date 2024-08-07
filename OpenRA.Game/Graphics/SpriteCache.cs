@@ -78,7 +78,7 @@ namespace OpenRA.Graphics
 			return GetFrames(fileSystem, filename, loaders);
 		}
 
-		public void LoadReservations(ModData modData)
+		public void LoadReservations(ModData modData, bool showLoadScreen = true)
 		{
 			foreach (var sb in SheetBuilders.Values)
 				sb.Current.CreateBuffer();
