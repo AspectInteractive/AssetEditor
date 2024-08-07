@@ -78,7 +78,7 @@ namespace OpenRA.Graphics
 			return GetFrames(fileSystem, filename, loaders);
 		}
 
-		public void LoadReservations(ModData modData)
+		public void LoadReservations(ModData modData, bool showLoadScreen = true)
 		{
 			var pendingResolve = new List<(
 				string Filename,

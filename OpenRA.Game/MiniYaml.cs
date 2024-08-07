@@ -481,6 +481,27 @@ namespace OpenRA
 			return ResolveInherits(nodes, tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation>.Empty);
 		}
 
+		// HACK: Using the original MergeIntoResolved that does not resolve non-top level nodes, as the new MergeIntoResolved()
+		// causes a crash on these nodes.
+		// This code precedes https://github.com/OpenRA/OpenRA/pull/21462
+		static void MergeIntoResolvedOriginal(MiniYamlNode overrideNode, List<MiniYamlNode> existingNodes, HashSet<string> existingNodeKeys,
+			Dictionary<string, MiniYaml> tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited, bool withInherits = true)
+		{
+			if (existingNodeKeys.Add(overrideNode.Key))
+			{
+				existingNodes.Add(overrideNode);
+				return;
+			}
+
+			var existingNodeIndex = IndexOfKey(existingNodes, overrideNode.Key);
+			var existingNode = existingNodes[existingNodeIndex];
+			var value = MergePartial(existingNode.Value, overrideNode.Value);
+			var nodes = withInherits ? ResolveInherits(value, tree, inherited) : ResolveWithoutInherits(value, tree, inherited);
+			if (!value.Nodes.SequenceEqual(nodes))
+				value = value.WithNodes(nodes);
+			existingNodes[existingNodeIndex] = existingNode.WithValue(value);
+		}
+
 		static void MergeIntoResolved(MiniYamlNode overrideNode, List<MiniYamlNode> existingNodes, HashSet<string> existingNodeKeys,
 			Dictionary<string, MiniYaml> tree, ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited, bool withInherits = true)
 		{
@@ -493,7 +514,7 @@ namespace OpenRA
 			}
 
 			var value = MergePartial(existingNode?.Value, overrideNode.Value);
-			var nodes = ResolveInherits(value, tree, inherited);
+			var nodes = withInherits ? ResolveInherits(value, tree, inherited) : ResolveWithoutInherits(value, tree, inherited);
 			if (!value.Nodes.SequenceEqual(nodes))
 				value = value.WithNodes(nodes);
 
@@ -501,6 +522,18 @@ namespace OpenRA
 				existingNodes[existingNodeIndex] = existingNode.WithValue(value);
 			else
 				existingNodes.Add(overrideNode.WithValue(value));
+		}
+
+		static List<MiniYamlNode> ResolveWithoutInherits(MiniYaml node, Dictionary<string, MiniYaml> tree,
+			ImmutableDictionary<string, MiniYamlNode.SourceLocation> inherited)
+		{
+			var resolved = new List<MiniYamlNode>(node.Nodes.Length);
+			var resolvedKeys = new HashSet<string>(node.Nodes.Length);
+
+			foreach (var n in node.Nodes)
+				MergeIntoResolvedOriginal(n, resolved, resolvedKeys, tree, inherited);
+
+			return resolved;
 		}
 
 		static List<MiniYamlNode> ResolveInherits(
