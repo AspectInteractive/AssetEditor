@@ -12,7 +12,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml.Linq;
 using OpenRA.Effects;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -202,7 +201,6 @@ namespace OpenRA.GameRules
 			ResolvedWeapons = new MiniYamlNodeBuilder(Rules.ResolvedWeaponsYaml.
 				FirstOrDefault(s => string.Equals(s.Key, Name, StringComparison.InvariantCultureIgnoreCase)));
 		}
-
 
 		public bool IsValidTarget(BitSet<TargetableType> targetTypes)
 		{

@@ -9,13 +9,12 @@
  */
 #endregion
 
-using OpenRA.FileSystem;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Xml.Linq;
+using OpenRA.FileSystem;
 
 namespace OpenRA
 {
@@ -578,12 +577,11 @@ namespace OpenRA
 		}
 
 		/// <summary>
-		/// Writes a MiniYaml node to text file
+		/// Writes a MiniYaml node to text file.
 		/// </summary>
-		/// <param name="folderName">The output folder name</param>
-		/// <param name="fileName">The output file name</param>
-		/// <param name="key">The name of the first node</param>
-		/// <param name="node">The node that is being written to a file</param>
+		/// <param name="folderName">The output folder name.</param>
+		/// <param name="fileName">The output file name.</param>
+		/// <param name="node">The node that is being written to a file.</param>
 		public static void WriteNodeToText(string folderName, string fileName, MiniYamlNode node)
 		{
 			var outputStr = GetNodeOutputString(node);

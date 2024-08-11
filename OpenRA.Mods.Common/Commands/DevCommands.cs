@@ -14,7 +14,6 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Commands
@@ -163,15 +162,14 @@ namespace OpenRA.Mods.Common.Commands
 
 		static void HotReload(string arg, World world)
 		{
-
-			var matchingRulesFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
-			var matchingWeaponsFile = Game.ModData.Manifest.Weapons.FirstOrDefault(f => f.Contains(arg));
-			var matchingSequencesFile = Game.ModData.Manifest.Sequences.FirstOrDefault(f => f.Contains(arg));
 			var defaultRules = world.Map.Rules;
-
 			if (!string.IsNullOrEmpty(arg))
 			{
-				if (arg[Math.Max(0, arg.Length - 5)..] == ".yaml")
+				var matchingRulesFile = Game.ModData.Manifest.Rules.FirstOrDefault(f => f.Contains(arg));
+				var matchingWeaponsFile = Game.ModData.Manifest.Weapons.FirstOrDefault(f => f.Contains(arg));
+				var matchingSequencesFile = Game.ModData.Manifest.Sequences.FirstOrDefault(f => f.Contains(arg));
+
+				if (arg.EndsWith(".yaml", StringComparison.InvariantCultureIgnoreCase))
 				{
 					if (matchingRulesFile != null)
 						defaultRules.LoadActorTraitsFromRuleFile(world, Game.ModData, matchingRulesFile);
@@ -180,7 +178,7 @@ namespace OpenRA.Mods.Common.Commands
 					if (matchingSequencesFile != null)
 						world.Map.Sequences.ReloadSequenceSetFromFiles(Game.ModData.DefaultFileSystem, matchingSequencesFile);
 					if (matchingRulesFile == null && matchingWeaponsFile == null && matchingSequencesFile == null)
-						Console.WriteLine($"Cannot find file specified - check spelling: {arg}. Reload aborted");
+						Console.WriteLine($"Cannot find file specified - check spelling: {arg}. Reload aborted.");
 				}
 				else
 				{

@@ -11,13 +11,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Numerics;
-using System.Reflection;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using OpenRA.FileSystem;
 using OpenRA.GameRules;
 using OpenRA.Traits;
@@ -122,7 +117,7 @@ namespace OpenRA
 				return MiniYaml.AtomicMerge(inputNode);
 		}
 
-		public static void WriteResolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles,	string outputFolder, bool deleteFirst = false)
+		public static void WriteResolvedRulesToText(IReadOnlyFileSystem fs, string[] ruleFiles, string outputFolder, bool deleteFirst = false)
 		{
 			if (deleteFirst)
 				MiniYaml.DeleteAllFiles(outputFolder);
@@ -135,7 +130,6 @@ namespace OpenRA
 				foreach (var ruleNode in rulesYamlNodes)
 					MiniYaml.WriteNodeToText(outputFolder, ruleFile, ruleNode);
 			}
-
 		}
 
 		public static string OutputYamlNodes(List<MiniYamlNode> nodes)
@@ -169,7 +163,13 @@ namespace OpenRA
 			var yamlUnresolvedNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
 			ResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null);
 			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
-			var actorUnresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlUnresolvedNodes, "UnresolvedRulesYaml", FilterNode)[actorKey.ToLowerInvariant()];
+
+			var actorUnresolvedRules = LoadFilteredYamlToDictionary(
+				modData.DefaultFileSystem,
+				yamlUnresolvedNodes,
+				"UnresolvedRulesYaml",
+				FilterNode)[actorKey.ToLowerInvariant()];
+
 			UnresolvedRulesYamlDict[actorKey] = actorUnresolvedRules; // update the Ruleset's rules Yaml
 
 			var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey, StringComparison.InvariantCultureIgnoreCase)).Value;
@@ -179,19 +179,8 @@ namespace OpenRA
 			if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
 				return;
 
-			var newActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRules);
-
-			//var matchingWorldActors = world.Actors.Where(a => a.Info.Name.ToLowerInvariant() == actorKey).ToList();
-			//matchingWorldActors.ForEach(a =>
-			//	{
-			//		//a.Info.ClearTraits();
-			//		//a.DisposeTraits();
-			//		//a.LoadCachedTraits();
-			//	});
-
-			actor.LoadTraits(modData.ObjectCreator, newActorUnresolvedRules, true);
+			actor.LoadTraits(modData.ObjectCreator, new MiniYamlNodeBuilder(actorUnresolvedRules), true);
 			CallRulesetLoadedOnActors(actorKey);
-			//world.RecreateActors();
 		}
 
 		public void LoadActorTraitsFromRuleFile(World world, ModData modData, string ruleFile)
@@ -228,15 +217,11 @@ namespace OpenRA
 				if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
 					continue;
 
-				//var newActorUnresolvedRules = new MiniYamlNodeBuilder(unresolvedRules.FirstOrDefault(s => string.Equals(s.Key, actor.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
-
 				actor.LoadTraits(modData.ObjectCreator, actorKey.Value, true);
 				actorInfos.Add(actor);
 			}
 
 			CallRulesetLoadedOnActorsList(actorInfos);
-			//world.Actors.Where(a => actorInfos.Select(i => i.Name).Contains(a.Info.Name))
-			//	.ToList().ForEach(a => a.LoadCachedTraits());
 		}
 
 		public void LoadWeapon(World world, ModData modData, string weaponKey)
@@ -296,7 +281,8 @@ namespace OpenRA
 				if (weapon == null)
 					continue;
 
-				var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapons.FirstOrDefault(s => string.Equals(s.Key, weapon.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
+				var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapons
+					.FirstOrDefault(s => string.Equals(s.Key, weapon.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
 
 				weapon.LoadYaml(newWeaponUnresolvedRules);
 				weaponInfos.Add(weapon);
@@ -456,8 +442,12 @@ namespace OpenRA
 			Ruleset ruleset = null;
 			void LoadRuleset()
 			{
-				bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
-				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(fileSystem, MiniYaml.LoadWithoutInherits(fileSystem, m.Rules, null), "UnresolvedRulesYaml", FilterNode);
+				var unresolvedRulesYaml = LoadFilteredYamlToDictionary(
+					fileSystem,
+					MiniYaml.LoadWithoutInherits(fileSystem, m.Rules, null),
+					"UnresolvedRulesYaml",
+					(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix));
+
 				var resolvedRulesYaml = MiniYaml.Load(fileSystem, m.Rules, null); // needs to not filter in order to include Inheritance nodes for AtomicMerge
 
 				var actors = MergeOrDefault("Rules", fileSystem, m.Rules, mapRules, dr.Actors,

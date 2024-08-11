@@ -16,7 +16,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Reflection.Metadata;
 using OpenRA;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
@@ -434,17 +433,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				return template;
 			}
-			//else if (fieldType == typeof(string))
-			//{
-			//	var template = stringOptionTemplate.Clone();
-			//	template.Get<LabelWidget>("LABEL").GetText = () => fieldName;
 
-			//	SetUpTextField(template.Get<TextFieldWidget>("VALUE"),
-			//		initialValue != null ? initialValue.ToString() : "",
-			//		text => setValue(text));
+			// else if (fieldType == typeof(string))
+			// {
+			// 	var template = stringOptionTemplate.Clone();
+			// 	template.Get<LabelWidget>("LABEL").GetText = () => fieldName;
 
-			//	return template;
-			//}
+			// 	SetUpTextField(template.Get<TextFieldWidget>("VALUE"),
+			// 		initialValue != null ? initialValue.ToString() : "",
+			// 		text => setValue(text));
+
+			// 	return template;
+			// }
 			else if (fieldType == typeof(float))
 			{
 				var template = floatOptionTemplate.Clone();
@@ -722,7 +722,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					td.Add(o);
 
 			preview.SetPreview(actor, td);
-			foreach (var editableProperties in a.Fields) // editableProperties is the list of fields for a given trait
+
+			// editableProperties is the list of fields for a given trait
+			foreach (var editableProperties in a.Fields)
 			{
 				var traitNode = editableProperties;
 
@@ -858,27 +860,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				sequenceNodes.WriteToFile(Path.Combine(Platform.SupportDir, "AssetEditorSequences.yaml"));
 
 			edited = false;
-		}
-
-		void EditActor(string name, string parentName, string fieldName, object value)
-		{
-			edited = true;
-			edited = true;
-			if (actorEdits.TryGetValue(name, out var actor))
-			{
-				if (actor.TryGetValue(parentName, out var fields))
-					fields[fieldName] = value;
-				else
-					actor.Add(parentName, new Dictionary<string, object>() { { fieldName, value } });
-			}
-			else
-				actorEdits.Add(name, new Dictionary<string, Dictionary<string, object>>
-				{
-					{
-						parentName,
-						new Dictionary<string, object>() { { fieldName, value } }
-					}
-				});
 		}
 
 		void EditSequence(string name, string parentName, string fieldName, object value)

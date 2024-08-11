@@ -11,20 +11,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Numerics;
-using System.Reflection;
-using System.Xml.Linq;
-using ICSharpCode.SharpZipLib.BZip2;
-using OpenRA.FileSystem;
 using OpenRA.Primitives;
 using OpenRA.Traits;
-using static System.Net.WebRequestMethods;
 
 namespace OpenRA
-{	
+{
 	/// <summary>
 	/// A unit/building inside the game. Every rules starts with one and adds trait to it.
 	/// </summary>
@@ -72,8 +64,6 @@ namespace OpenRA
 
 		public void LoadTraits(ObjectCreator creator, MiniYamlNode node, bool clearAllFirst = false)
 		{
-			//Console.WriteLine($"~~~ Loading Traits for Actor: {Name}, node: {node.Key} ~~~");
-			//Console.WriteLine($"~ NEW YAML NODE ~\n{MiniYaml.GetNodeOutputString(node)}");
 			MiniYaml yaml;
 			if (Rules != null && Rules.ResolvedRulesYaml != null)
 				yaml = Ruleset.ResolveIndividualNode(node, Rules.ResolvedRulesYaml);
@@ -94,7 +84,6 @@ namespace OpenRA
 						var trait = LoadTraitInfo(creator, t.Key, t.Value);
 						if (trait != null)
 							traits.Add(trait);
-						//Console.WriteLine($"Trait {trait} loaded.");
 					}
 					catch (FieldLoader.MissingFieldsException e)
 					{
@@ -130,7 +119,6 @@ namespace OpenRA
 
 		public void RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
-
 			Rules = rules;
 			Rules.UnresolvedRulesYamlDict.TryGetValue(Name.ToLowerInvariant(), out var actorUnresolvedRulesYaml);
 			ActorUnresolvedRules = new MiniYamlNodeBuilder(actorUnresolvedRulesYaml);

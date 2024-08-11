@@ -160,14 +160,13 @@ namespace OpenRA.Graphics
 			return Load(fileSystem, modData.Manifest.Sequences, additionalSequences);
 		}
 
-
 		/// <summary>
 		/// Loads a list of sequence files.
 		/// </summary>
 		/// <param name="fileSystem">The filesystem to use.</param>
 		/// <param name="sequencesFiles">a list of one or more sequences files.</param>
 		/// <param name="additionalSequences">Any additional sequences specified.</param>
-		/// <returns>A dictionary containing all images</returns>
+		/// <returns>A dictionary containing all images.</returns>
 		public Dictionary<string, Dictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, string[] sequencesFiles, MiniYaml additionalSequences)
 		{
 			var nodes = MiniYaml.Load(fileSystem, sequencesFiles, additionalSequences);
@@ -196,7 +195,8 @@ namespace OpenRA.Graphics
 		/// <param name="nodes">a list of nodes from one or more sequences files.</param>
 		/// <param name="additionalSequences">Any additional sequences specified.</param>
 		/// <returns>A dictionary containing all images.</returns>
-		public Dictionary<string, Dictionary<string, ISpriteSequence>> LoadNode(IReadOnlyFileSystem fileSystem, List<MiniYamlNode> nodes, MiniYaml additionalSequences)
+		public Dictionary<string, Dictionary<string, ISpriteSequence>> LoadNode(IReadOnlyFileSystem fileSystem,
+			List<MiniYamlNode> nodes, MiniYaml additionalSequences)
 		{
 			var newImages = (Dictionary<string, Dictionary<string, ISpriteSequence>>)images;
 
