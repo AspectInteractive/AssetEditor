@@ -158,29 +158,39 @@ namespace OpenRA
 		public void LoadActorTraitsFromRulesActor(World world, ModData modData, string actorKey)
 		{
 			if (!UnresolvedRulesYamlDict.ContainsKey(actorKey))
+			{
+				TextNotificationsManager.Debug($"Cannot load {actorKey} as it does not exist in the YAML Files. Aborting.");
 				return;
+			}
 
-			var yamlUnresolvedNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
-			ResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null);
-			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
+			try
+			{
+				var yamlUnresolvedNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Rules, null);
+				ResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null);
+				static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
 
-			var actorUnresolvedRules = LoadFilteredYamlToDictionary(
-				modData.DefaultFileSystem,
-				yamlUnresolvedNodes,
-				"UnresolvedRulesYaml",
-				FilterNode)[actorKey.ToLowerInvariant()];
+				var actorUnresolvedRules = LoadFilteredYamlToDictionary(
+					modData.DefaultFileSystem,
+					yamlUnresolvedNodes,
+					"UnresolvedRulesYaml",
+					FilterNode)[actorKey.ToLowerInvariant()];
 
-			UnresolvedRulesYamlDict[actorKey] = actorUnresolvedRules; // update the Ruleset's rules Yaml
+				UnresolvedRulesYamlDict[actorKey] = actorUnresolvedRules; // update the Ruleset's rules Yaml
 
-			var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey, StringComparison.InvariantCultureIgnoreCase)).Value;
+				var actor = Actors.FirstOrDefault(s => string.Equals(s.Key, actorKey, StringComparison.InvariantCultureIgnoreCase)).Value;
 
-			Console.WriteLine($"Hot Reloading Found Actor: {actor.Name}");
+				Console.WriteLine($"Hot Reloading Found Actor: {actor.Name}");
 
-			if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
-				return;
+				if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
+					return;
 
-			actor.LoadTraits(modData.ObjectCreator, new MiniYamlNodeBuilder(actorUnresolvedRules), true);
-			CallRulesetLoadedOnActors(actorKey);
+				actor.LoadTraits(modData.ObjectCreator, new MiniYamlNodeBuilder(actorUnresolvedRules), true);
+				CallRulesetLoadedOnActors(actorKey);
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Loading the actor {actorKey} raised the exception: {ex.GetType().FullName} : {ex.Message}");
+			}
 		}
 
 		public void LoadActorTraitsFromRuleFile(World world, ModData modData, string ruleFile)
@@ -199,11 +209,40 @@ namespace OpenRA
 			else
 				TextNotificationsManager.Debug($"Reloading rule files: {string.Join(", ", ruleFiles)}");
 
-			// TODO: exception handling: file access error, syntax error, etc.
-			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, ruleFiles, null);
-			static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
-			var unresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
-			ResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null); // We need all resolved rules reloaded, not just the ones in the files
+			List<MiniYamlNode> yamlNodes = new();
+			Dictionary<string, MiniYamlNode> unresolvedRules = new();
+
+			try
+			{
+				yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, ruleFiles, null);
+				static bool FilterNode(MiniYamlNode node) => node.Key.StartsWith(ActorInfo.AbstractActorPrefix);
+				unresolvedRules = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedRulesYaml", FilterNode);
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Loading the YAML rule files raised the exception: {ex.GetType().FullName} : {ex.Message}. Aborting.");
+			}
+
+			// No rules found in YAML file, so we exit early
+			if (unresolvedRules.Count == 0)
+				return;
+
+			List<MiniYamlNode> newResolvedRulesYaml = new();
+
+			try
+			{
+				// This will only assign the new YAML if it did not raise an exception when loading the YAML to newResolvedRulesYaml
+				newResolvedRulesYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Rules, null); // We need all resolved rules reloaded, not just the ones in the files
+				ResolvedRulesYaml = newResolvedRulesYaml;
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Resolving the YAML rule files raised the exception: {ex.GetType().FullName} : {ex.Message}. Aborting.");
+			}
+
+			// No rules were resolved after processing the YAML file, so we exit early
+			if (newResolvedRulesYaml.Count == 0)
+				return;
 
 			var actorInfos = new List<ActorInfo>();
 			foreach (var actorKey in unresolvedRules)
@@ -217,8 +256,15 @@ namespace OpenRA
 				if (actor == null || actor.ActorUnresolvedRules == null || actor.ActorResolvedRules == null)
 					continue;
 
-				actor.LoadTraits(modData.ObjectCreator, actorKey.Value, true);
-				actorInfos.Add(actor);
+				try
+				{
+					actor.LoadTraits(modData.ObjectCreator, actorKey.Value, true);
+					actorInfos.Add(actor);
+				}
+				catch (Exception ex)
+				{
+					TextNotificationsManager.Debug($"Loading Actor {actor.Name} from YAML raised exception: {ex.GetType().FullName} : {ex.Message}");
+				}
 			}
 
 			CallRulesetLoadedOnActorsList(actorInfos);
@@ -227,25 +273,35 @@ namespace OpenRA
 		public void LoadWeapon(World world, ModData modData, string weaponKey)
 		{
 			if (!UnresolvedWeaponsYamlDict.ContainsKey(weaponKey))
+			{
+				TextNotificationsManager.Debug($"Cannot load {weaponKey} as it does not exist in the YAML Files. Aborting.");
 				return;
+			}
 
-			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
-			var unresolvedWeapon = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml")[weaponKey.ToLowerInvariant()];
-			ResolvedWeaponsYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+			try
+			{
+				var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+				var unresolvedWeapon = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml")[weaponKey.ToLowerInvariant()];
+				ResolvedWeaponsYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
 
-			UnresolvedWeaponsYamlDict[weaponKey] = unresolvedWeapon;
+				UnresolvedWeaponsYamlDict[weaponKey] = unresolvedWeapon;
 
-			var weapon = Weapons.FirstOrDefault(s => string.Equals(s.Key, weaponKey, StringComparison.InvariantCultureIgnoreCase)).Value;
+				var weapon = Weapons.FirstOrDefault(s => string.Equals(s.Key, weaponKey, StringComparison.InvariantCultureIgnoreCase)).Value;
 
-			Console.WriteLine($"Hot Reloading Found Weapon: {weapon.Name}");
+				Console.WriteLine($"Hot Reloading Found Weapon: {weapon.Name}");
 
-			if (weapon == null)
-				return;
+				if (weapon == null)
+					return;
 
-			var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapon);
+				var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapon);
 
-			weapon.LoadYaml(newWeaponUnresolvedRules);
-			CallRulesetLoadedOnWeapons(weaponKey);
+				weapon.LoadYaml(newWeaponUnresolvedRules);
+				CallRulesetLoadedOnWeapons(weaponKey);
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Loading the weapon {weaponKey} raised the exception: {ex.GetType().FullName} : {ex.Message}");
+			}
 		}
 
 		public void LoadWeaponsFromFile(World world, ModData modData, string weaponFile)
@@ -264,9 +320,41 @@ namespace OpenRA
 			else
 				TextNotificationsManager.Debug($"Reloading weapon files: {string.Join(", ", weaponFiles)}");
 
-			var yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, weaponFiles, null);
-			var unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
-			ResolvedWeaponsYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+			List<MiniYamlNode> yamlNodes = new();
+			Dictionary<string, MiniYamlNode> unresolvedWeapons = new();
+
+			try
+			{
+				yamlNodes = MiniYaml.LoadWithoutInherits(modData.DefaultFileSystem, weaponFiles, null);
+				unresolvedWeapons = LoadFilteredYamlToDictionary(modData.DefaultFileSystem, yamlNodes, "UnresolvedWeaponsYaml");
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Loading the YAML weapon files raised the exception: {ex.GetType().FullName} : {ex.Message}. Aborting.");
+				return;
+			}
+
+			// No weapons found in YAML file, so we exit early
+			if (unresolvedWeapons.Count == 0)
+				return;
+
+			List<MiniYamlNode> newResolvedWeaponsYaml = new();
+
+			try
+			{
+				// This will only assign the new YAML if it did not raise an exception when loading the YAML to newResolvedWeaponsYaml
+				newResolvedWeaponsYaml = MiniYaml.Load(modData.DefaultFileSystem, modData.Manifest.Weapons, null);
+				ResolvedWeaponsYaml = newResolvedWeaponsYaml;
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Resolving the YAML weapon files raised the exception: {ex.GetType().FullName} : {ex.Message}. Aborting.");
+				return;
+			}
+
+			// No weapons were resolved after processing the YAML file, so we exit early
+			if (newResolvedWeaponsYaml.Count == 0)
+				return;
 
 			var weaponInfos = new List<WeaponInfo>();
 
@@ -284,8 +372,15 @@ namespace OpenRA
 				var newWeaponUnresolvedRules = new MiniYamlNodeBuilder(unresolvedWeapons
 					.FirstOrDefault(s => string.Equals(s.Key, weapon.Name, StringComparison.InvariantCultureIgnoreCase)).Value);
 
-				weapon.LoadYaml(newWeaponUnresolvedRules);
-				weaponInfos.Add(weapon);
+				try
+				{
+					weapon.LoadYaml(newWeaponUnresolvedRules);
+					weaponInfos.Add(weapon);
+				}
+				catch (Exception ex)
+				{
+					TextNotificationsManager.Debug($"Loading Weapon {weapon.Name} from YAML raised exception: {ex.GetType().FullName} : {ex.Message}");
+				}
 			}
 
 			CallRulesetLoadedOnWeaponsList(weaponInfos);

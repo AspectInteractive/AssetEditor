@@ -103,10 +103,20 @@ namespace OpenRA.Graphics
 			var matchingSequenceNodes = nodes.Where(n => n.Key == sequenceKey).ToList();
 
 			if (matchingSequenceNodes.Count == 0)
+			{
+				TextNotificationsManager.Debug($"Cannot load sequence {sequenceKey} as it does not exist in the sequence files. Aborting.");
 				return;
+			}
 
 			newAddSequences ??= additionalSequences;
 			newImages = LoadNode(fileSystem, matchingSequenceNodes, newAddSequences);
+
+			if (newImages == null || newImages.Count == 0)
+			{
+				TextNotificationsManager.Debug($"Reloading sequence {sequenceKey} failed. No new sequences loaded.");
+				return;
+			}
+
 			images = newImages;
 			LoadSprites(false);
 		}
@@ -146,6 +156,13 @@ namespace OpenRA.Graphics
 
 			newAddSequences ??= additionalSequences;
 			newImages = Load(fileSystem, sequencesFiles, newAddSequences);
+
+			if (newImages == null || newImages.Count == 0)
+			{
+				TextNotificationsManager.Debug($"Reloading sequence files {string.Join(", ", sequencesFiles)} failed. No new sequences loaded.");
+				return;
+			}
+
 			images = newImages;
 			LoadSprites(false);
 		}
@@ -169,7 +186,22 @@ namespace OpenRA.Graphics
 		/// <returns>A dictionary containing all images.</returns>
 		public Dictionary<string, Dictionary<string, ISpriteSequence>> Load(IReadOnlyFileSystem fileSystem, string[] sequencesFiles, MiniYaml additionalSequences)
 		{
-			var nodes = MiniYaml.Load(fileSystem, sequencesFiles, additionalSequences);
+			List<MiniYamlNode> nodes = new();
+
+			try
+			{
+				nodes = MiniYaml.Load(fileSystem, sequencesFiles, additionalSequences);
+			}
+			catch (Exception ex)
+			{
+				TextNotificationsManager.Debug($"Loading the sequenceFiles {string.Join(", ", sequencesFiles)} raised the exception:" +
+					$" {ex.GetType().FullName} : {ex.Message}");
+			}
+
+			// No sequences found in the YAML file so we exit early
+			if (nodes.Count == 0)
+				return default;
+
 			Dictionary<string, Dictionary<string, ISpriteSequence>> newImages;
 			if (images == null)
 				newImages = new Dictionary<string, Dictionary<string, ISpriteSequence>>();
@@ -182,7 +214,16 @@ namespace OpenRA.Graphics
 				if (node.Key.StartsWith(ActorInfo.AbstractActorPrefix))
 					continue;
 
-				newImages[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
+				try
+				{
+					newImages[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
+				}
+				catch (Exception ex)
+				{
+					TextNotificationsManager.Debug($"Loading Sequence {node.Key} from YAML raised exception: {ex.GetType().FullName} : {ex.Message}." +
+						"Aborting to prevent unsafe state.");
+					return default;
+				}
 			}
 
 			return newImages;
@@ -206,7 +247,16 @@ namespace OpenRA.Graphics
 				if (node.Key.StartsWith(ActorInfo.AbstractActorPrefix))
 					return newImages;
 
-				newImages[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
+				try
+				{
+					newImages[node.Key] = modData.SpriteSequenceLoader.ParseSequences(modData, tileSet, SpriteCache, node);
+				}
+				catch (Exception ex)
+				{
+					TextNotificationsManager.Debug($"Loading Sequence {node.Key} from YAML raised exception: {ex.GetType().FullName} : {ex.Message}." +
+						"Aborting to prevent unsafe state.");
+					return default;
+				}
 			}
 
 			return newImages;
